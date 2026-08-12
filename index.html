@@ -122,8 +122,8 @@ textarea.freetext:focus{outline:none;border-color:var(--accent);}
 .res-sub{font-size:15px;color:var(--dim);max-width:520px;line-height:1.6;margin-bottom:40px;}
 
 .match-card{background:var(--bg2);border:1px solid var(--line);border-radius:16px;margin-bottom:22px;overflow:hidden;}
-.match-img{width:100%;aspect-ratio:2.2/1;background:var(--bg2);overflow:hidden;}
-.match-img img{width:100%;height:100%;object-fit:cover;object-position:center;display:block;}
+.match-img{width:100%;aspect-ratio:2.2/1;background:#fff;overflow:hidden;display:flex;align-items:center;justify-content:center;}
+.match-img img{width:100%;height:100%;object-fit:contain;object-position:center;display:block;}
 .match-content{display:flex;flex-direction:column;}
 .match-grid{display:flex;flex-direction:column;gap:20px;margin-bottom:8px;}
 .match-grid .match-card{margin-bottom:0;}
@@ -373,7 +373,7 @@ const STEPS=[
   {key:"strength",sig:"Your presence.",title:"Strength Factor / Sillage",help:"How far do you want it to travel?",type:"single",cols:"stack",opts:[
     {v:"subtle",e:"🤏",l:"Subtle",d:"Close to the skin, only noticed up close"},{v:"moderate",e:"👀",l:"Moderate",d:"Noticeable in the room without overpowering"},{v:"strong",e:"🔥",l:"Strong",d:"Fills the room, lingers long after you leave"}
   ]},
-  {key:"profile",sig:"Your character.",title:"Scent Profile",help:"Pick up to 3 that sound most appealing.",type:"multi",max:3,cols:"chips",opts:[]},
+  {key:"profile",sig:"Your character.",title:"Scent Profile",help:(st)=>`Pick up to ${BUNDLE_PROFILE_PICKS[st.bundle]||3} that sound most appealing.`,type:"multi",max:3,cols:"chips",opts:[]},
   {key:"effect",sig:"Your message.",title:"Effect",help:"Choose what you want your fragrance to communicate. Pick 1–2.",type:"multi",max:2,cols:"chips",opts:[]},
   {key:"freetext",sig:"Your words.",title:"Personal Description",help:"Optional — tell us in your own words.",type:"text",cols:"",opts:[]}
 ];
@@ -406,15 +406,14 @@ function visibleSteps(){ return STEPS.filter(isVisible); }
 function nextVisibleIndex(from){ let i=from+1; while(i<STEPS.length && !isVisible(STEPS[i])) i++; return i; }
 function prevVisibleIndex(from){ let i=from-1; while(i>=0 && !isVisible(STEPS[i])) i--; return i; }
 
-// Scent Profile shows a different number of options depending on the bundle
-// picked in step 1 — Solo sees fewer, Trio sees the most.
-const BUNDLE_PROFILE_COUNT={single:3,duo:5,trio:9};
-function getStepOpts(s){
+// Scent Profile always shows every available option — only the number the
+// respondent is allowed to *pick* changes, based on the bundle chosen in step 1.
+const BUNDLE_PROFILE_PICKS={single:3,duo:5,trio:9};
+function getStepMax(s){
   if(s.key==='profile'){
-    const n=BUNDLE_PROFILE_COUNT[state.bundle];
-    if(n)return s.opts.slice(0,n);
+    return BUNDLE_PROFILE_PICKS[state.bundle]||s.max;
   }
-  return s.opts;
+  return s.max;
 }
 
 function renderStep(){
@@ -426,23 +425,25 @@ function renderStep(){
   backBtn.style.visibility=current===0?'hidden':'visible';
 
   let html=`<div class="q-signature">${s.sig}</div><div class="q-title">${s.title}</div>`;
-  if(s.help)html+=`<div class="q-help">${s.help}</div>`;
+  const helpText = typeof s.help==='function' ? s.help(state) : s.help;
+  if(helpText)html+=`<div class="q-help">${helpText}</div>`;
 
   if(s.type==='single'){
     html+=`<div class="opt-grid ${s.cols}">`;
-    getStepOpts(s).forEach(o=>{
+    s.opts.forEach(o=>{
       const on=state[s.key]===o.v?' on':'';
       html+=`<button class="opt${on}" data-v="${o.v}">${o.e?`<span class="opt-emoji">${o.e}</span>`:''}<span class="opt-label">${o.l}</span>${o.d?`<div class="opt-desc">${o.d}</div>`:''}</button>`;
     });
     html+='</div>';
   }else if(s.type==='multi'){
     html+=`<div class="opt-grid ${s.cols}">`;
-    getStepOpts(s).forEach(o=>{
+    s.opts.forEach(o=>{
       const on=state[s.key].includes(o.v)?' on':'';
       html+=`<button class="opt${on}" data-v="${o.v}"><span class="opt-emoji">${o.e}</span><span class="opt-label">${o.l}</span>${o.d?`<div class="opt-desc">${o.d}</div>`:''}</button>`;
     });
     html+='</div>';
-    if(s.max)html+=`<div class="limit-note">Up to ${s.max} — selected ${state[s.key].length}/${s.max}</div>`;
+    const stepMax=getStepMax(s);
+    if(stepMax)html+=`<div class="limit-note">Up to ${stepMax} — selected ${state[s.key].length}/${stepMax}</div>`;
   }else if(s.type==='text'){
     html+=`<textarea class="freetext" id="freetextInput" placeholder="e.g. &quot;I'm looking for a strong, fresh fragrance that will turn heads as I walk past&quot;...">${state.freetext}</textarea>`;
   }
@@ -463,6 +464,7 @@ function bindStepEvents(s){
       });
     });
   }else if(s.type==='multi'){
+    const stepMax=getStepMax(s);
     stepArea.querySelectorAll('.opt').forEach(btn=>{
       btn.addEventListener('click',()=>{
         const v=btn.dataset.v;
@@ -470,11 +472,11 @@ function bindStepEvents(s){
         const idx=arr.indexOf(v);
         if(idx>-1){arr.splice(idx,1);btn.classList.remove('on');}
         else{
-          if(s.max&&arr.length>=s.max)return;
+          if(stepMax&&arr.length>=stepMax)return;
           arr.push(v);btn.classList.add('on');
         }
         const note=stepArea.querySelector('.limit-note');
-        if(note&&s.max)note.textContent=`Up to ${s.max} — selected ${arr.length}/${s.max}`;
+        if(note&&stepMax)note.textContent=`Up to ${stepMax} — selected ${arr.length}/${stepMax}`;
         updateNextState();
       });
     });
