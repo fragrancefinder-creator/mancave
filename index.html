@@ -22,29 +22,6 @@
   --ink:#0b0a08;
   --paper:#f3ede2;
 }
-body.light{
-  --bg:#f3ede2;
-  --bg2:#ffffff;
-  --text:#1a1712;
-  --dim:rgba(26,23,18,.62);
-  --dimmer:rgba(26,23,18,.36);
-  --line:rgba(26,23,18,.10);
-  --line-s:rgba(26,23,18,.18);
-  --accent:#3d6489;
-  --accent2:#2f5170;
-  --accent-soft:rgba(61,100,137,.10);
-  --accent-line:rgba(61,100,137,.35);
-  --ink:#f3ede2;
-  --paper:#1a1712;
-}
-body{transition:background .25s ease, color .25s ease;}
-.theme-toggle{
-  display:inline-flex;align-items:center;justify-content:center;
-  width:34px;height:34px;border-radius:50%;
-  border:1.5px solid var(--line-s);background:transparent;color:var(--text);
-  cursor:pointer;font-size:15px;transition:all .18s;flex-shrink:0;
-}
-.theme-toggle:hover{border-color:var(--accent-line);}
 *{box-sizing:border-box;margin:0;padding:0;}
 html{scroll-behavior:smooth;}
 body{
@@ -140,12 +117,13 @@ textarea.freetext:focus{outline:none;border-color:var(--accent);}
 
 .results{display:none;padding:60px 0 80px;}
 .results.active{display:block;}
+.results.w{max-width:880px;}
 .res-signature{font-family:'Playfair Display',serif;font-style:italic;font-size:clamp(32px,6vw,48px);color:var(--accent2);margin-bottom:6px;}
 .res-sub{font-size:15px;color:var(--dim);max-width:520px;line-height:1.6;margin-bottom:40px;}
 
 .match-card{background:var(--bg2);border:1px solid var(--line);border-radius:16px;margin-bottom:22px;overflow:hidden;}
 .match-img{width:100%;aspect-ratio:2.2/1;background:var(--bg2);overflow:hidden;}
-.match-img img{width:100%;height:100%;object-fit:cover;display:block;}
+.match-img img{width:100%;height:100%;object-fit:cover;object-position:center;display:block;}
 .match-content{display:flex;flex-direction:column;}
 .match-grid{display:flex;flex-direction:column;gap:20px;margin-bottom:8px;}
 .match-grid .match-card{margin-bottom:0;}
@@ -172,6 +150,7 @@ textarea.freetext:focus{outline:none;border-color:var(--accent);}
 
 .restart-row{margin-top:32px;text-align:center;}
 footer{text-align:center;padding:26px;border-top:1px solid var(--line);color:var(--dimmer);font-size:12px;font-family:'Space Mono',monospace;letter-spacing:.05em;}
+.footer-credit{margin-top:8px;font-size:11px;letter-spacing:.08em;color:var(--dimmer);opacity:.75;}
 
 @media(max-width:600px){
   .w{padding:0 20px;}
@@ -198,7 +177,6 @@ footer{text-align:center;padding:26px;border-top:1px solid var(--line);color:var
   </div>
   <div style="display:flex;align-items:center;gap:14px;">
     <div class="brand-sub">Fragrance Finder</div>
-    <button class="theme-toggle" id="themeToggle" title="Toggle light / dark mode" aria-label="Toggle light / dark mode">🌙</button>
   </div>
 </div>
 
@@ -237,7 +215,11 @@ footer{text-align:center;padding:26px;border-top:1px solid var(--line);color:var
   </div>
 </section>
 
-<footer>Mancave Man Market — find your scent, wear your character.</footer>
+<footer>
+  Mancave Man Market — find your scent, wear your character.
+  <div class="footer-credit">Made by Men For Men</div>
+  <div class="footer-credit">Designed by PJ</div>
+</footer>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
@@ -254,18 +236,7 @@ const firebaseConfig = {
 const fbApp = initializeApp(firebaseConfig);
 const db = getFirestore(fbApp);
 
-// ---------- Light / dark mode ----------
-const themeToggle=document.getElementById('themeToggle');
-function applyTheme(mode){
-  document.body.classList.toggle('light',mode==='light');
-  themeToggle.textContent = mode==='light' ? '☀️' : '🌙';
-}
-applyTheme(localStorage.getItem('mancave-theme') || 'dark');
-themeToggle.addEventListener('click',()=>{
-  const next = document.body.classList.contains('light') ? 'dark' : 'light';
-  applyTheme(next);
-  localStorage.setItem('mancave-theme',next);
-});
+// Theme is permanently dark mode (mancave-theme lock).
 
 // CATALOG is loaded live from Firestore (the "fragrances" collection) instead of
 // being hardcoded here. Peter manages it from admin.html — this page never needs editing again.
@@ -395,9 +366,6 @@ const STEPS=[
     {v:"duo",e:"2️⃣",l:"The Dynamic Duo Bundle",d:"Two fragrances — one built for daytime and hot weather, one for nighttime and cooler air."},
     {v:"trio",e:"3️⃣",l:"The Mancave Trio",d:"Three fragrances covering your day, your night, and that one special occasion."}
   ]},
-  {key:"age",sig:"Your era.",title:"Age Range",help:"This is only a light factor in the final recommendation — the fragrance's character, the occasion and your preferences carry more weight.",type:"single",cols:"stack",opts:[
-    {v:"1825",e:"",l:"18–25 (Youthful)"},{v:"2535",e:"",l:"25–35 (Versatile/Mid-range)"},{v:"35plus",e:"",l:"35+ (Mature)"}
-  ]},
   {key:"occ",sig:"Your world.",title:"Where / When to Wear",help:"Choose where you see yourself wearing the fragrance. Select as many as apply.",type:"multi",cols:"",opts:[]},
   {key:"time",sig:"Your hour.",title:"Time of Day",help:"",type:"single",cols:"stack",showIf:(st)=>st.bundle==='single',opts:[
     {v:"day",e:"⛅",l:"Daytime",d:"Fresh, clean and easy-going"},{v:"evening",e:"🌆",l:"Evening",d:"Smoother, warmer, more noticeable"},{v:"night",e:"🌙",l:"Night",d:"Richer, sweeter, spicier, stronger"},{v:"all",e:"🔄",l:"All day",d:"Versatile across situations"}
@@ -438,6 +406,17 @@ function visibleSteps(){ return STEPS.filter(isVisible); }
 function nextVisibleIndex(from){ let i=from+1; while(i<STEPS.length && !isVisible(STEPS[i])) i++; return i; }
 function prevVisibleIndex(from){ let i=from-1; while(i>=0 && !isVisible(STEPS[i])) i--; return i; }
 
+// Scent Profile shows a different number of options depending on the bundle
+// picked in step 1 — Solo sees fewer, Trio sees the most.
+const BUNDLE_PROFILE_COUNT={single:3,duo:5,trio:9};
+function getStepOpts(s){
+  if(s.key==='profile'){
+    const n=BUNDLE_PROFILE_COUNT[state.bundle];
+    if(n)return s.opts.slice(0,n);
+  }
+  return s.opts;
+}
+
 function renderStep(){
   const s=STEPS[current];
   const vis=visibleSteps();
@@ -451,14 +430,14 @@ function renderStep(){
 
   if(s.type==='single'){
     html+=`<div class="opt-grid ${s.cols}">`;
-    s.opts.forEach(o=>{
+    getStepOpts(s).forEach(o=>{
       const on=state[s.key]===o.v?' on':'';
       html+=`<button class="opt${on}" data-v="${o.v}">${o.e?`<span class="opt-emoji">${o.e}</span>`:''}<span class="opt-label">${o.l}</span>${o.d?`<div class="opt-desc">${o.d}</div>`:''}</button>`;
     });
     html+='</div>';
   }else if(s.type==='multi'){
     html+=`<div class="opt-grid ${s.cols}">`;
-    s.opts.forEach(o=>{
+    getStepOpts(s).forEach(o=>{
       const on=state[s.key].includes(o.v)?' on':'';
       html+=`<button class="opt${on}" data-v="${o.v}"><span class="opt-emoji">${o.e}</span><span class="opt-label">${o.l}</span>${o.d?`<div class="opt-desc">${o.d}</div>`:''}</button>`;
     });

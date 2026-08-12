@@ -128,7 +128,7 @@ input:focus,textarea:focus,select:focus{outline:none;border-color:var(--accent);
           <div id="dropZoneEmpty">
             <div style="font-size:22px;margin-bottom:6px;">📷</div>
             <div>Drag a photo here, or click to browse</div>
-            <div class="hint" style="margin:6px 0 0;">Auto-cropped and resized to a standard 1000×625 (16:10) — any photo works, just aim for a clear, well-lit shot of the bottle.</div>
+            <div class="hint" style="margin:6px 0 0;">Auto-cropped and resized to 1100×500 (a wide, short banner) — center the bottle and leave some headroom top and bottom, since a tall photo will lose its top/bottom edges to this crop.</div>
           </div>
           <div id="dropZonePreview" style="display:none;">
             <img id="previewImg" alt="Preview">
@@ -489,7 +489,7 @@ $('addOccTagBtn').addEventListener('click',()=>addNewTag('occ','newOccTag','newO
 
 // ---------- Save / Edit / Delete ----------
 // ---------- Photo drag-and-drop (resized + compressed in-browser, stored as data URI — no third-party host needed) ----------
-const IMG_W=1000, IMG_H=625; // standard 16:10, matches the quiz's display shape
+const IMG_W=1100, IMG_H=500; // matches the quiz's display banner shape (2.2:1) exactly — no second crop happens live
 let currentImageData=null;
 
 function showImagePreview(dataUrl){
@@ -517,7 +517,7 @@ function processImageFile(file){
   reader.onload=e=>{
     const img=new Image();
     img.onload=()=>{
-      // Cover-fit crop to the standard 1000×625 (16:10) shape, so every fragrance's
+      // Cover-fit crop to the standard 1100×500 shape, so every fragrance's
       // photo displays identically on the quiz regardless of the source photo's size.
       const canvas=document.createElement('canvas');
       canvas.width=IMG_W; canvas.height=IMG_H;
@@ -660,7 +660,7 @@ async function fetchResultsIfNeeded(){
   const snap=await getDocs(collection(db,'results'));
   allResults=snap.docs.map(d=>{
     const data=d.data();
-    return {id:d.id,names:data.names||[],ts:data.ts&&data.ts.toDate?data.ts.toDate():null};
+    return {id:d.id,names:data.names||[],bundle:data.bundle||null,ts:data.ts&&data.ts.toDate?data.ts.toDate():null};
   });
 }
 
@@ -770,7 +770,7 @@ function renderActivity(){
   $('statRate').textContent = starts.length ? Math.round(completed.length/starts.length*100)+'%' : '—';
 
   const counts={single:0,duo:0,trio:0};
-  completed.forEach(r=>{ if(counts[r.bundle]!==undefined)counts[r.bundle]++; else counts[r.bundle]=(counts[r.bundle]||0)+1; });
+  completed.forEach(r=>{ if(r.bundle in counts)counts[r.bundle]++; });
   const total=Object.values(counts).reduce((a,b)=>a+b,0);
 
   const bars=$('bundleBars');
