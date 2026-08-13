@@ -72,6 +72,16 @@ input:focus,textarea:focus,select:focus{outline:none;border-color:var(--accent);
 .drop-zone{border:2px dashed var(--line-s);border-radius:12px;padding:26px;text-align:center;cursor:pointer;color:var(--dim);transition:all .15s;background:var(--bg2);}
 .drop-zone:hover,.drop-zone.dragover{border-color:var(--accent);background:var(--accent-soft);color:var(--text);}
 .drop-zone img{max-width:100%;max-height:180px;border-radius:8px;display:block;margin:0 auto;}
+.toggle-row{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:12px 0;border-bottom:1px solid var(--line);}
+.toggle-row:last-child{border-bottom:none;}
+.toggle-row .tname{font-weight:600;font-size:14px;}
+.toggle-row .tdesc{font-size:12px;color:var(--dimmer);margin-top:2px;}
+.switch{position:relative;display:inline-block;width:46px;height:26px;flex-shrink:0;cursor:pointer;}
+.switch input{opacity:0;width:0;height:0;position:absolute;}
+.switch .slider{position:absolute;inset:0;background:var(--line-s);border-radius:99px;transition:background .15s;}
+.switch .slider::before{content:"";position:absolute;height:20px;width:20px;left:3px;top:3px;background:var(--text);border-radius:50%;transition:transform .15s;}
+.switch input:checked+.slider{background:var(--accent);}
+.switch input:checked+.slider::before{transform:translateX(20px);background:var(--ink);}
 </style>
 </head>
 <body>
@@ -107,6 +117,45 @@ input:focus,textarea:focus,select:focus{outline:none;border-color:var(--accent);
     <div id="seedCard" class="card" style="display:none;">
       <p style="margin-bottom:12px;">Your fragrance collection is empty. Load the starting 16 fragrances to begin?</p>
       <button class="btn primary" id="seedBtn">Load starting catalog</button>
+    </div>
+
+    <div class="card">
+      <h2 style="font-family:'Playfair Display',serif;font-size:18px;margin-bottom:6px;">Site copy & colours</h2>
+      <p class="hint" style="margin-top:0;">Edit the cover page's headline and intro text, plus the site's accent and background colours. Leave a colour blank to use the default.</p>
+      <div class="field"><label>Cover headline</label><input id="cfg_heroTitle" placeholder="YOUR SIGNATURE SCENT STARTS HERE."></div>
+      <div class="field"><label>Cover subtitle</label><textarea id="cfg_heroSub" style="min-height:90px;" placeholder="Finding the right fragrance can be difficult..."></textarea></div>
+      <div class="row2">
+        <div class="field"><label>Accent colour</label><input id="cfg_accent" type="text" placeholder="#3d6489"></div>
+        <div class="field"><label>Background colour</label><input id="cfg_bg" type="text" placeholder="#0b0a08"></div>
+      </div>
+      <button class="btn primary" id="saveContentBtn" style="margin-top:6px;">Save site copy & colours</button>
+      <div id="contentSaveMsg"></div>
+    </div>
+
+    <div class="card">
+      <h2 style="font-family:'Playfair Display',serif;font-size:18px;margin-bottom:6px;">Site theme background</h2>
+      <p class="hint" style="margin-top:0;">Optional — an image shown behind the whole site. Without one, the site just uses its plain colour gradient above.</p>
+      <div id="dropZoneBg" class="drop-zone">
+        <div id="dropZoneBgEmpty">
+          <div style="font-size:22px;margin-bottom:6px;">🖤</div>
+          <div>Drag a photo here, or click to browse</div>
+          <div class="hint" style="margin:6px 0 0;">Recommended: 1920×1080px (16:9), landscape, JPG or PNG. Go dark and moody — a scrim is overlaid on top for text readability. Auto-cropped to fit; compressed automatically.</div>
+        </div>
+        <div id="dropZoneBgPreview" style="display:none;">
+          <img id="previewImgBg" alt="Site background preview">
+          <button type="button" class="btn" id="removeImgBgBtn" style="margin-top:10px;">Remove photo</button>
+        </div>
+      </div>
+      <input type="file" id="fileInputBg" accept="image/*" style="display:none;">
+      <div id="imgMsgBg"></div>
+      <button class="btn primary" id="saveBackgroundBtn" style="margin-top:16px;">Save background</button>
+      <div id="bgSaveMsg"></div>
+    </div>
+
+    <div class="card">
+      <h2 style="font-family:'Playfair Display',serif;font-size:18px;margin-bottom:6px;">Quiz questions</h2>
+      <p class="hint" style="margin-top:0;">Turn a question off to remove it from the live quiz entirely — the step counter adjusts automatically to match however many are left on.</p>
+      <div id="questionToggles"></div>
     </div>
 
     <div class="card">
@@ -268,7 +317,7 @@ input:focus,textarea:focus,select:focus{outline:none;border-color:var(--accent);
 
   <div class="tabpanel" id="tab-tags">
     <div class="card">
-      <p class="hint">Edit the emoji or label shown for any choice in the quiz. Changes apply everywhere that tag is used — no need to touch individual fragrances.</p>
+      <p class="hint">Edit the emoji or label shown for any choice in the quiz, or delete a tag you don't want offered anymore — it'll disappear from the quiz even if an old fragrance still has it. Changes apply everywhere that tag is used — no need to touch individual fragrances.</p>
       <h2 style="font-family:'Playfair Display',serif;font-size:16px;margin:20px 0 10px;">Scent Profile</h2>
       <div id="tagEditor-profile"></div>
       <h2 style="font-family:'Playfair Display',serif;font-size:16px;margin:24px 0 10px;">Effect</h2>
@@ -337,6 +386,27 @@ const BASE_OCC_META={
 const BASE_META={profile:BASE_PROFILE_META,effect:BASE_EFFECT_META,occ:BASE_OCC_META};
 // Firestore overrides — whatever's saved here (custom emoji/label, or brand-new tags) wins over BASE_META.
 let tagMeta={profile:{},effect:{},occ:{}};
+// Tags the user has deleted from the Tags tab — kept out of the quiz and the tag manager,
+// but a fragrance that already has one keeps it internally. Stored per-category under the
+// reserved "_hidden" key inside the same tagMeta/<category> doc (so it survives alongside
+// the emoji/label overrides without a schema change).
+let hiddenTags={profile:[],effect:[],occ:[]};
+
+// ---------- Site copy, colours & background (config/site doc) ----------
+let siteConfig={};
+const BG_W=1920, BG_H=1080; // 16:9, cover-fits behind the whole viewport
+let bgImageData=undefined; // undefined = untouched this session, null = removed, string = new upload
+
+// ---------- Quiz question on/off toggles (config/questions doc) ----------
+const TOGGLABLE_QUESTIONS=[
+  {key:"occ",label:"Where / When to Wear",desc:"Which occasions the fragrance is for"},
+  {key:"time",label:"Time of Day",desc:"Only ever shown for the Single bundle"},
+  {key:"strength",label:"Strength Factor / Sillage",desc:"How noticeable the scent should be"},
+  {key:"profile",label:"Scent Profile",desc:"Woody, citrusy, spicy, etc."},
+  {key:"effect",label:"Effect",desc:"The impression the scent should give"},
+  {key:"freetext",label:"Personal Description",desc:"The open-ended text box"}
+];
+let questionConfig={};
 
 function tagInfo(category,tag){
   const override=tagMeta[category][tag];
@@ -349,7 +419,14 @@ function tagInfo(category,tag){
 function allTagsForCategory(category,catFieldName){
   const s=new Set([...Object.keys(BASE_META[category]),...Object.keys(tagMeta[category])]);
   catalog.forEach(f=>{ (f[catFieldName||category]||[]).forEach(t=>s.add(t)); });
+  (hiddenTags[category]||[]).forEach(t=>s.delete(t));
   return s;
+}
+async function deleteTag(category,tag){
+  hiddenTags[category]=[...(hiddenTags[category]||[]),tag];
+  await setDoc(doc(db,'tagMeta',category),{_hidden:hiddenTags[category]},{merge:true});
+  renderChipPickers();
+  renderTagEditor();
 }
 async function saveTagMeta(category,tag,emoji,label){
   tagMeta[category][tag]={emoji,label};
@@ -362,9 +439,12 @@ async function loadTagMeta(){
       getDoc(doc(db,'tagMeta','effect')),
       getDoc(doc(db,'tagMeta','occ'))
     ]);
-    tagMeta.profile=pSnap.exists()?pSnap.data():{};
-    tagMeta.effect=eSnap.exists()?eSnap.data():{};
-    tagMeta.occ=oSnap.exists()?oSnap.data():{};
+    const pData=pSnap.exists()?pSnap.data():{}, eData=eSnap.exists()?eSnap.data():{}, oData=oSnap.exists()?oSnap.data():{};
+    hiddenTags.profile=pData._hidden||[]; hiddenTags.effect=eData._hidden||[]; hiddenTags.occ=oData._hidden||[];
+    delete pData._hidden; delete eData._hidden; delete oData._hidden;
+    tagMeta.profile=pData;
+    tagMeta.effect=eData;
+    tagMeta.occ=oData;
   }catch(e){
     console.error('Could not load tag customizations (using defaults) — check Firestore rules include a tagMeta match block',e);
   }
@@ -417,6 +497,8 @@ async function initApp(){
   try{ await loadCatalog(); }catch(e){ console.error('loadCatalog failed',e); alert('Could not load your fragrance catalog — check your Firestore rules include a fragrances match block, and check the browser console for details.'); }
   renderChipPickers();
   renderFragList();
+  try{ await loadSiteConfig(); }catch(e){ console.error('loadSiteConfig failed',e); }
+  try{ await loadQuestionConfig(); }catch(e){ console.error('loadQuestionConfig failed',e); }
 }
 
 async function loadCatalog(){
@@ -553,6 +635,142 @@ $('fileInput').addEventListener('change',e=>{ if(e.target.files[0])processImageF
 ['dragleave','drop'].forEach(evt=>dropZone.addEventListener(evt,e=>{ e.preventDefault(); dropZone.classList.remove('dragover'); }));
 dropZone.addEventListener('drop',e=>{ if(e.dataTransfer.files[0])processImageFile(e.dataTransfer.files[0]); });
 $('removeImgBtn').addEventListener('click',e=>{ e.stopPropagation(); clearImage(); });
+
+// ---------- Site copy & colours ----------
+async function loadSiteConfig(){
+  try{
+    const snap=await getDoc(doc(db,'config','site'));
+    siteConfig=snap.exists()?snap.data():{};
+  }catch(e){ console.error('Could not load site config',e); siteConfig={}; }
+  $('cfg_heroTitle').value=siteConfig.heroTitle||'';
+  $('cfg_heroSub').value=siteConfig.heroSub||'';
+  $('cfg_accent').value=siteConfig.accent||'';
+  $('cfg_bg').value=siteConfig.bg||'';
+  showBgPreview(siteConfig.background||null);
+}
+$('saveContentBtn').addEventListener('click',async()=>{
+  $('contentSaveMsg').innerHTML='';
+  $('saveContentBtn').disabled=true;
+  try{
+    await setDoc(doc(db,'config','site'),{
+      heroTitle:$('cfg_heroTitle').value.trim(),
+      heroSub:$('cfg_heroSub').value.trim(),
+      accent:$('cfg_accent').value.trim(),
+      bg:$('cfg_bg').value.trim()
+    },{merge:true});
+    $('contentSaveMsg').innerHTML='<div class="msg ok">Saved — refresh the live quiz to see it.</div>';
+  }catch(e){
+    $('contentSaveMsg').innerHTML=`<div class="msg err">${e.message}</div>`;
+  }
+  $('saveContentBtn').disabled=false;
+});
+
+// ---------- Site theme background ----------
+function showBgPreview(dataUrl){
+  if(dataUrl){
+    $('previewImgBg').src=dataUrl;
+    $('dropZoneBgEmpty').style.display='none';
+    $('dropZoneBgPreview').style.display='block';
+  }else{
+    $('previewImgBg').src='';
+    $('dropZoneBgEmpty').style.display='block';
+    $('dropZoneBgPreview').style.display='none';
+  }
+}
+function processBgFile(file){
+  $('imgMsgBg').innerHTML='';
+  if(!file || !file.type.startsWith('image/')){
+    $('imgMsgBg').innerHTML='<div class="msg err">That doesn\'t look like an image file.</div>';
+    return;
+  }
+  const reader=new FileReader();
+  reader.onload=e=>{
+    const img=new Image();
+    img.onload=()=>{
+      const canvas=document.createElement('canvas');
+      canvas.width=BG_W; canvas.height=BG_H;
+      const ctx=canvas.getContext('2d');
+      const srcRatio=img.width/img.height, targetRatio=BG_W/BG_H;
+      let sx,sy,sw,sh;
+      if(srcRatio>targetRatio){ sh=img.height; sw=sh*targetRatio; sx=(img.width-sw)/2; sy=0; }
+      else{ sw=img.width; sh=sw/targetRatio; sx=0; sy=(img.height-sh)/2; }
+      ctx.drawImage(img,sx,sy,sw,sh,0,0,BG_W,BG_H);
+      let quality=0.85;
+      let dataUrl=canvas.toDataURL('image/jpeg',quality);
+      while(dataUrl.length>950000 && quality>0.4){
+        quality-=0.1;
+        dataUrl=canvas.toDataURL('image/jpeg',quality);
+      }
+      if(dataUrl.length>1100000){
+        $('imgMsgBg').innerHTML='<div class="msg err">This photo is still too large after compression — try a simpler/smaller source image.</div>';
+        return;
+      }
+      bgImageData=dataUrl;
+      showBgPreview(dataUrl);
+    };
+    img.onerror=()=>{ $('imgMsgBg').innerHTML='<div class="msg err">Couldn\'t read that image — try a different file.</div>'; };
+    img.src=e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+const dropZoneBg=$('dropZoneBg');
+dropZoneBg.addEventListener('click',()=>$('fileInputBg').click());
+$('fileInputBg').addEventListener('change',e=>{ if(e.target.files[0])processBgFile(e.target.files[0]); });
+['dragenter','dragover'].forEach(evt=>dropZoneBg.addEventListener(evt,e=>{ e.preventDefault(); dropZoneBg.classList.add('dragover'); }));
+['dragleave','drop'].forEach(evt=>dropZoneBg.addEventListener(evt,e=>{ e.preventDefault(); dropZoneBg.classList.remove('dragover'); }));
+dropZoneBg.addEventListener('drop',e=>{ if(e.dataTransfer.files[0])processBgFile(e.dataTransfer.files[0]); });
+$('removeImgBgBtn').addEventListener('click',e=>{
+  e.stopPropagation();
+  bgImageData=null;
+  $('fileInputBg').value='';
+  showBgPreview(null);
+});
+$('saveBackgroundBtn').addEventListener('click',async()=>{
+  $('bgSaveMsg').innerHTML='';
+  $('saveBackgroundBtn').disabled=true;
+  try{
+    if(bgImageData!==undefined){ // only write if the admin actually changed it this session
+      await setDoc(doc(db,'config','site'),{background:bgImageData||''},{merge:true});
+      siteConfig.background=bgImageData||'';
+      bgImageData=undefined;
+    }
+    $('bgSaveMsg').innerHTML='<div class="msg ok">Saved — refresh the live quiz to see it.</div>';
+  }catch(e){
+    $('bgSaveMsg').innerHTML=`<div class="msg err">${e.message}</div>`;
+  }
+  $('saveBackgroundBtn').disabled=false;
+});
+
+// ---------- Quiz question on/off toggles ----------
+async function loadQuestionConfig(){
+  try{
+    const snap=await getDoc(doc(db,'config','questions'));
+    questionConfig=snap.exists()?snap.data():{};
+  }catch(e){ console.error('Could not load question config',e); questionConfig={}; }
+  renderQuestionToggles();
+}
+function renderQuestionToggles(){
+  $('questionToggles').innerHTML=TOGGLABLE_QUESTIONS.map(q=>{
+    const on=questionConfig[q.key]!==false; // enabled by default
+    return `<div class="toggle-row" data-key="${q.key}">
+      <div><div class="tname">${q.label}</div><div class="tdesc">${q.desc}</div></div>
+      <label class="switch"><input type="checkbox" ${on?'checked':''}><span class="slider"></span></label>
+    </div>`;
+  }).join('');
+  $('questionToggles').querySelectorAll('.toggle-row').forEach(row=>{
+    row.querySelector('input').addEventListener('change',async e=>{
+      const key=row.dataset.key;
+      questionConfig[key]=e.target.checked;
+      try{
+        await setDoc(doc(db,'config','questions'),{[key]:e.target.checked},{merge:true});
+      }catch(err){
+        alert('Could not save that toggle: '+err.message);
+        e.target.checked=!e.target.checked;
+        questionConfig[key]=e.target.checked;
+      }
+    });
+  });
+}
 
 function resetForm(){
   editingId=null;
@@ -801,6 +1019,7 @@ function renderTagEditor(){
         <input class="label-input" value="${info.label}">
         <div class="tagkey" title="${tag}">${tag}</div>
         <button class="btn" data-act="save">Save</button>
+        <button class="btn danger" data-act="delete">Delete</button>
       </div>`;
     }).join('');
     container.querySelectorAll('.tag-edit-row').forEach(row=>{
@@ -814,6 +1033,11 @@ function renderTagEditor(){
         btn.textContent='Saved ✓';
         setTimeout(()=>{ btn.textContent='Save'; btn.disabled=false; },1200);
         renderChipPickers(); // keep the Catalog tab's chips in sync if visited next
+      });
+      row.querySelector('[data-act="delete"]').addEventListener('click',async()=>{
+        const tag=row.dataset.tag;
+        if(!confirm(`Remove the "${tag}" tag from the quiz? Fragrances already tagged with it keep the tag internally, but it won't be offered as an option anymore.`))return;
+        await deleteTag(category,tag);
       });
     });
   });

@@ -153,19 +153,34 @@ footer{text-align:center;padding:26px;border-top:1px solid var(--line);color:var
 .footer-credit{margin-top:8px;font-size:11px;letter-spacing:.08em;color:var(--dimmer);opacity:.75;}
 
 @media(max-width:600px){
-  .w{padding:0 20px;}
-  .opt-grid.two-col{grid-template-columns:1fr;}
-  .opt-grid.chips{grid-template-columns:repeat(2,1fr);gap:10px;}
-  .match-head{flex-direction:column;padding:16px 16px 12px;}
-  .match-body{padding:14px 16px;}
-  .match-name{font-size:17px;}
-  .quiz-panel{padding:24px 18px;}
-  .match-row{flex-direction:column;gap:3px;}
-  .match-row .lab{min-width:0;}
-  .quiz{padding:44px 0 calc(64px + env(safe-area-inset-bottom,0px));}
-  .nav-row{margin-top:22px;padding-bottom:10px;}
-  .hero{padding:48px 0 32px;}
+  .w{padding:0 18px;}
+  .hero{padding:40px 0 32px;}
   .hero-sub{font-size:15px;}
+  .eyebrow{margin-bottom:16px;}
+  .opt-grid{grid-template-columns:1fr;gap:10px;}
+  .opt-grid.two-col{grid-template-columns:1fr;}
+  .opt-grid.chips{grid-template-columns:1fr;gap:10px;}
+  .opt{padding:14px;min-height:44px;}
+  .opt-grid.cards .opt{padding:16px;}
+  .opt-grid.stack .opt{padding:12px 16px;min-height:44px;}
+  .quiz-panel{padding:22px 16px;border-radius:16px;}
+  .quiz{padding:36px 0 calc(56px + env(safe-area-inset-bottom,0px));}
+  .nav-row{margin-top:20px;padding-bottom:10px;gap:10px;}
+  .btn{padding:14px 18px;min-height:44px;}
+  .btn-ghost{padding:10px 4px;min-height:44px;}
+  textarea.freetext{font-size:16px;}
+  input,select,textarea{font-size:16px;}
+
+  .match-card{border-radius:14px;margin-bottom:16px;}
+  .match-grid{gap:14px;}
+  .match-head{flex-direction:column;align-items:flex-start;gap:8px;padding:16px 16px 12px;}
+  .match-body{padding:14px 16px;}
+  .match-name{font-size:18px;}
+  .match-why{font-size:14px;margin-bottom:14px;}
+  .match-row{flex-direction:column;gap:3px;margin-bottom:10px;}
+  .match-row .lab{min-width:0;}
+  .slot-block .change-slot{min-height:44px;padding:10px 14px;}
+  .res-sub{font-size:14px;margin-bottom:28px;}
 }
 </style>
 </head>
@@ -276,6 +291,8 @@ const OCC_META={
 // admin panel's Tags tab (custom emoji, custom label, brand-new tags) wins over the
 // fallback maps above.
 let TAG_OVERRIDES={profile:{},effect:{},occ:{}};
+// Tags Peter has deleted from the admin's Tags tab — excluded from the quiz's option lists.
+let HIDDEN_TAGS={profile:[],effect:[],occ:[]};
 
 function titleCase(s){return s.charAt(0).toUpperCase()+s.slice(1);}
 function tagOpt(tag,fallbackMeta,overrideMeta){
@@ -297,6 +314,9 @@ function buildDynamicTagOptions(){
     (f.effect||[]).forEach(t=>effectTags.add(t));
     (f.occ||[]).forEach(t=>occTags.add(t));
   });
+  (HIDDEN_TAGS.profile||[]).forEach(t=>profileTags.delete(t));
+  (HIDDEN_TAGS.effect||[]).forEach(t=>effectTags.delete(t));
+  (HIDDEN_TAGS.occ||[]).forEach(t=>occTags.delete(t));
   const profileOpts=[...profileTags].map(t=>tagOpt(t,PROFILE_META,TAG_OVERRIDES.profile));
   const effectOpts=[...effectTags].map(t=>tagOpt(t,EFFECT_META,TAG_OVERRIDES.effect));
   const occOpts=[...occTags].map(t=>tagOpt(t,OCC_META,TAG_OVERRIDES.occ));
@@ -310,6 +330,56 @@ function buildDynamicTagOptions(){
   occOpts.forEach(o=>{ OCC_LABEL_MAP[o.v]=o.l; });
 }
 
+// Site copy, colours & background image — set from admin's "Site copy & colours" /
+// "Site theme background" cards (config/site doc in Firestore).
+let SITE_CONFIG={heroTitle:'',heroSub:'',accent:'',bg:'',background:''};
+
+function applySiteContent(){
+  if(SITE_CONFIG.heroTitle){
+    document.querySelector('.hero h1').textContent=SITE_CONFIG.heroTitle;
+  }
+  if(SITE_CONFIG.heroSub){
+    const heroP=document.querySelector('.hero-sub');
+    if(heroP)heroP.textContent=SITE_CONFIG.heroSub;
+  }
+}
+function applySiteColors(){
+  const targets=[document.body,document.querySelector('.quiz-panel')].filter(Boolean);
+  targets.forEach(el=>{
+    if(SITE_CONFIG.accent){ el.style.setProperty('--accent',SITE_CONFIG.accent); el.style.setProperty('--accent2',SITE_CONFIG.accent); el.style.setProperty('--accent-line',SITE_CONFIG.accent); }
+    if(SITE_CONFIG.bg){ el.style.setProperty('--bg',SITE_CONFIG.bg); el.style.setProperty('--bg2',SITE_CONFIG.bg); }
+  });
+}
+function applySiteBackground(){
+  if(SITE_CONFIG.background){
+    const scrim='rgba(8,6,4,.62)';
+    document.body.style.background=`linear-gradient(${scrim},${scrim}), url("${SITE_CONFIG.background}") center/cover fixed, var(--bg)`;
+  }
+}
+async function loadSiteConfig(){
+  try{
+    const snap=await getDoc(doc(db,'config','site'));
+    if(snap.exists())SITE_CONFIG={...SITE_CONFIG,...snap.data()};
+  }catch(e){
+    console.error('Could not load site config (non-fatal)',e);
+  }
+  applySiteContent();
+  applySiteColors();
+  applySiteBackground();
+}
+
+// Which quiz questions are switched on — set from admin's "Quiz questions" card
+// (config/questions doc in Firestore). Missing/undefined means enabled.
+let QUESTION_CONFIG={};
+async function loadQuestionConfig(){
+  try{
+    const snap=await getDoc(doc(db,'config','questions'));
+    if(snap.exists())QUESTION_CONFIG=snap.data();
+  }catch(e){
+    console.error('Could not load question config (non-fatal)',e);
+  }
+}
+
 async function loadTagMeta(){
   try{
     const [pSnap,eSnap,oSnap]=await Promise.all([
@@ -317,9 +387,12 @@ async function loadTagMeta(){
       getDoc(doc(db,'tagMeta','effect')),
       getDoc(doc(db,'tagMeta','occ'))
     ]);
-    TAG_OVERRIDES.profile=pSnap.exists()?pSnap.data():{};
-    TAG_OVERRIDES.effect=eSnap.exists()?eSnap.data():{};
-    TAG_OVERRIDES.occ=oSnap.exists()?oSnap.data():{};
+    const pData=pSnap.exists()?pSnap.data():{}, eData=eSnap.exists()?eSnap.data():{}, oData=oSnap.exists()?oSnap.data():{};
+    HIDDEN_TAGS.profile=pData._hidden||[]; HIDDEN_TAGS.effect=eData._hidden||[]; HIDDEN_TAGS.occ=oData._hidden||[];
+    delete pData._hidden; delete eData._hidden; delete oData._hidden;
+    TAG_OVERRIDES.profile=pData;
+    TAG_OVERRIDES.effect=eData;
+    TAG_OVERRIDES.occ=oData;
   }catch(e){
     console.error('Could not load tag customizations (using defaults)',e);
   }
@@ -330,7 +403,7 @@ async function loadCatalog(){
   startBtn.textContent='Loading fragrances…';
   startBtn.disabled=true;
   try{
-    const [snap]=await Promise.all([getDocs(collection(db,'fragrances')),loadTagMeta()]);
+    const [snap]=await Promise.all([getDocs(collection(db,'fragrances')),loadTagMeta(),loadQuestionConfig(),loadSiteConfig()]);
     CATALOG=snap.docs.map(d=>({id:d.id,...d.data()}));
   }catch(e){
     console.error('Failed to load fragrance catalog',e);
@@ -401,7 +474,12 @@ document.getElementById('startBtn').addEventListener('click',()=>{
 
 loadCatalog();
 
-function isVisible(step){ return !step.showIf || step.showIf(state); }
+function isVisible(step){
+  // The bundle question drives the whole flow (single/duo/trio), so it's always shown —
+  // every other question can be switched off from the admin's "Quiz questions" card.
+  if(step.key!=='bundle' && QUESTION_CONFIG[step.key]===false) return false;
+  return !step.showIf || step.showIf(state);
+}
 function visibleSteps(){ return STEPS.filter(isVisible); }
 function nextVisibleIndex(from){ let i=from+1; while(i<STEPS.length && !isVisible(STEPS[i])) i++; return i; }
 function prevVisibleIndex(from){ let i=from-1; while(i>=0 && !isVisible(STEPS[i])) i--; return i; }
