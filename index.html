@@ -453,7 +453,19 @@ function buildDynamicTagOptions(){
 
 // Site copy, colours & background image — set from admin's "Site copy & colours" /
 // "Site theme background" cards (config/site doc in Firestore).
-let SITE_CONFIG={heroTitle:'',heroSub:'',accent:'',bg:'',background:'',whatsappNumber:'254745953367'};
+let SITE_CONFIG={heroTitle:'',heroSub:'',accent:'',bg:'',background:'',whatsappNumber:'254745953367',orderMessageTemplate:''};
+
+// Default WhatsApp order message. Editable from the admin panel — {order_number}
+// and {order_details} are replaced with the real order number and the
+// itemized items/subtotal/delivery block when a customer checks out.
+const DEFAULT_ORDER_MESSAGE_TEMPLATE=`Thank you for completing your order with Mancave Man Market.
+
+Order details: #{order_number}
+{order_details}
+
+Please note: We don’t keep stock in stores. Orders placed before 3 PM are delivered by the end of the following day, while orders placed after 3 PM may take up to 48 hours.
+
+We apologize for any inconvenience and appreciate your patience as we work to ensure a smooth experience for both our partners and clients.`;
 
 function applySiteContent(){
   if(SITE_CONFIG.heroTitle){
@@ -607,7 +619,8 @@ function addToCart(f){
   if(existing){ existing.qty++; }
   else{ cart.push({name:f.name,price:f.price||'',imageUrl:f.imageUrl||'',qty:1}); }
   renderCart();
-  openCart();
+  // Cart no longer auto-opens on add — it only opens when the customer
+  // clicks the cart icon (cartToggleBtn), once they're done shopping.
 }
 
 const cartOverlay=document.getElementById('cartOverlay');
@@ -789,17 +802,19 @@ document.getElementById('placeOrderBtn').addEventListener('click',async()=>{
     return;
   }
 
-  const lines=[
-    `*New Order #${orderNumber}*`,
+  const orderDetailsBlock=[
+    ...cart.map(i=>`${i.name} x${i.qty}${i.price?` — Ksh ${i.price}`:''}`),
     ``,
-    `*Name:* ${name}`,
-    `*Items:*`,
-    ...cart.map(i=>`• ${i.name} x${i.qty}${i.price?` — Ksh ${i.price}`:''}`),
-    ``,
-    `*Subtotal:* ${formatKsh(subtotal)}`,
-    `*${locationType==='custom'?'Delivery to':'Pickup'}:* ${orderData.address}`
-  ];
-  const text=encodeURIComponent(lines.join('\n'));
+    `Subtotal: ${formatKsh(subtotal)}`,
+    `${locationType==='custom'?'Delivery to':'Pickup'}: ${orderData.address}`
+  ].join('\n');
+
+  const template=SITE_CONFIG.orderMessageTemplate||DEFAULT_ORDER_MESSAGE_TEMPLATE;
+  const messageText=template
+    .replace(/\{order_number\}/g,orderNumber)
+    .replace(/\{order_details\}/g,orderDetailsBlock);
+
+  const text=encodeURIComponent(messageText);
   const waNumber=(SITE_CONFIG.whatsappNumber||'254745953367').replace(/\D/g,'');
   window.open(`https://wa.me/${waNumber}?text=${text}`,'_blank');
 

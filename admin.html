@@ -149,6 +149,15 @@ input:focus,textarea:focus,select:focus{outline:none;border-color:var(--accent);
       <div class="field"><label>WhatsApp order number</label><input id="cfg_whatsappNumber" type="text" placeholder="254745953367"></div>
       <button class="btn primary" id="saveWhatsappBtn" style="margin-top:6px;">Save WhatsApp number</button>
       <div id="whatsappSaveMsg"></div>
+
+      <div style="margin-top:22px;padding-top:20px;border-top:1px solid var(--line);">
+        <label style="display:block;margin-bottom:6px;">WhatsApp order message</label>
+        <p class="hint" style="margin-top:0;">This is the message that opens pre-filled in the customer's WhatsApp when they complete checkout. Use <code>{order_number}</code> and <code>{order_details}</code> anywhere you want the order number and the itemized items/subtotal/delivery details inserted.</p>
+        <textarea id="cfg_orderMessageTemplate" style="min-height:180px;font-family:'Space Mono',monospace;font-size:13px;"></textarea>
+        <button class="btn" id="resetOrderMessageBtn" style="margin-top:10px;">Reset to default</button>
+        <button class="btn primary" id="saveOrderMessageBtn" style="margin-top:10px;">Save message template</button>
+        <div id="orderMessageSaveMsg"></div>
+      </div>
     </div>
 
     <div class="card">
@@ -684,6 +693,17 @@ dropZone.addEventListener('drop',e=>{ if(e.dataTransfer.files[0])processImageFil
 $('removeImgBtn').addEventListener('click',e=>{ e.stopPropagation(); clearImage(); });
 
 // ---------- Site copy & colours ----------
+
+// Kept in sync with the same default in index.html.
+const DEFAULT_ORDER_MESSAGE_TEMPLATE=`Thank you for completing your order with Mancave Man Market.
+
+Order details: #{order_number}
+{order_details}
+
+Please note: We don’t keep stock in stores. Orders placed before 3 PM are delivered by the end of the following day, while orders placed after 3 PM may take up to 48 hours.
+
+We apologize for any inconvenience and appreciate your patience as we work to ensure a smooth experience for both our partners and clients.`;
+
 async function loadSiteConfig(){
   try{
     const snap=await getDoc(doc(db,'config','site'));
@@ -692,6 +712,7 @@ async function loadSiteConfig(){
   $('cfg_heroTitle').value=siteConfig.heroTitle||'';
   $('cfg_heroSub').value=siteConfig.heroSub||'';
   $('cfg_whatsappNumber').value=siteConfig.whatsappNumber||'';
+  $('cfg_orderMessageTemplate').value=siteConfig.orderMessageTemplate||DEFAULT_ORDER_MESSAGE_TEMPLATE;
   showBgPreview(siteConfig.background||null);
 }
 $('saveContentBtn').addEventListener('click',async()=>{
@@ -730,6 +751,25 @@ $('saveWhatsappBtn').addEventListener('click',async()=>{
     $('whatsappSaveMsg').innerHTML=`<div class="msg err">${e.message}</div>`;
   }
   $('saveWhatsappBtn').disabled=false;
+});
+$('resetOrderMessageBtn').addEventListener('click',()=>{
+  $('cfg_orderMessageTemplate').value=DEFAULT_ORDER_MESSAGE_TEMPLATE;
+});
+$('saveOrderMessageBtn').addEventListener('click',async()=>{
+  $('orderMessageSaveMsg').innerHTML='';
+  const template=$('cfg_orderMessageTemplate').value;
+  if(!template.trim()){
+    $('orderMessageSaveMsg').innerHTML='<div class="msg err">The message can\'t be empty.</div>';
+    return;
+  }
+  $('saveOrderMessageBtn').disabled=true;
+  try{
+    await setDoc(doc(db,'config','site'),{ orderMessageTemplate:template },{merge:true});
+    $('orderMessageSaveMsg').innerHTML='<div class="msg ok">Saved — new orders will use this message.</div>';
+  }catch(e){
+    $('orderMessageSaveMsg').innerHTML=`<div class="msg err">${e.message}</div>`;
+  }
+  $('saveOrderMessageBtn').disabled=false;
 });
 
 // ---------- Site theme background ----------
