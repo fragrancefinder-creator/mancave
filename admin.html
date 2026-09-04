@@ -64,6 +64,20 @@ input:focus,textarea:focus,select:focus{outline:none;border-color:var(--accent);
 .topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;}
 .logout{font-family:'Space Mono',monospace;font-size:11px;color:var(--dim);background:none;border:none;cursor:pointer;text-decoration:underline;}
 .hint{font-size:12px;color:var(--dimmer);margin-top:-8px;margin-bottom:16px;line-height:1.5;}
+
+.order-row{background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin-bottom:14px;}
+.order-row-head{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px;}
+.order-seq{font-family:'Space Mono',monospace;font-size:12px;color:var(--accent2);}
+.order-customer{font-size:13px;color:var(--dim);margin-top:4px;}
+.order-datetime{font-family:'Space Mono',monospace;font-size:11px;color:var(--dimmer);text-align:right;white-space:nowrap;}
+.order-items{display:flex;flex-direction:column;gap:8px;margin-bottom:12px;}
+.order-item{display:flex;gap:10px;align-items:center;}
+.order-item img,.order-item-noimg{width:40px;height:40px;object-fit:contain;background:#fff;border-radius:6px;flex-shrink:0;}
+.order-item-noimg{background:var(--bg);}
+.order-item-name{font-size:13px;font-weight:600;}
+.order-item-meta{font-size:11.5px;color:var(--dimmer);}
+.order-footer{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;padding-top:10px;border-top:1px solid var(--line);font-size:13px;color:var(--dim);}
+.order-subtotal{font-family:'Space Mono',monospace;font-weight:700;color:var(--accent2);}
 .tag-edit-row{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--line);}
 .tag-edit-row .emoji-input{width:48px;text-align:center;font-size:16px;padding:8px 4px;flex-shrink:0;}
 .tag-edit-row .label-input{flex:1;}
@@ -111,6 +125,7 @@ input:focus,textarea:focus,select:focus{outline:none;border-color:var(--accent);
     <div class="tab" data-tab="rankings">Rankings</div>
     <div class="tab" data-tab="activity">Activity</div>
     <div class="tab" data-tab="tags">Tags</div>
+    <div class="tab" data-tab="orders">Orders</div>
   </div>
 
   <div class="tabpanel active" id="tab-catalog">
@@ -171,6 +186,12 @@ input:focus,textarea:focus,select:focus{outline:none;border-color:var(--accent);
           <select id="f_special"><option value="false">No</option><option value="true">Yes</option></select>
         </div>
         <div class="field"><label>Inspired by</label><input id="f_inspired" placeholder="e.g. Azzaro The Most Wanted"></div>
+        <div class="field"><label>Price (Ksh)</label>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span style="font-family:'Space Mono',monospace;font-size:13px;color:var(--dim);flex-shrink:0;">Ksh</span>
+            <input id="f_price" type="text" placeholder="2,500">
+          </div>
+        </div>
       <div class="field">
         <label>Photo <span style="text-transform:none;color:var(--dimmer);">(optional — shown on the fragrance's result card)</span></label>
         <div id="dropZone" class="drop-zone">
@@ -325,6 +346,27 @@ input:focus,textarea:focus,select:focus{outline:none;border-color:var(--accent);
       <h2 style="font-family:'Playfair Display',serif;font-size:16px;margin:24px 0 10px;">Occasions</h2>
       <div id="tagEditor-occ"></div>
     </div>
+  </div>
+
+  <div class="tabpanel" id="tab-orders">
+    <div class="card">
+      <p class="hint" style="margin-top:0;">Every order placed from the site lands here, most recent first. The randomized number is what shows up in the customer's WhatsApp message; the "No." is just a running count of every order you've ever received.</p>
+      <div class="row3" style="align-items:end;">
+        <div class="field"><label>Date</label><input type="date" id="ordFilterDate"></div>
+        <div class="field"><label>Time of day</label>
+          <select id="ordFilterTime">
+            <option value="">Any time</option>
+            <option value="morning">Morning (12am–12pm)</option>
+            <option value="afternoon">Afternoon (12pm–6pm)</option>
+            <option value="evening">Evening (6pm–12am)</option>
+          </select>
+        </div>
+        <div class="field"><label>Order number</label><input type="text" id="ordFilterNumber" placeholder="e.g. 482"></div>
+      </div>
+      <button class="btn" id="ordClearFiltersBtn">Clear filters</button>
+      <button class="btn" id="ordRefreshBtn" style="margin-left:8px;">Refresh</button>
+    </div>
+    <div id="ordersList"></div>
   </div>
 </div>
 
@@ -488,6 +530,7 @@ document.querySelectorAll('.tab').forEach(t=>{
     if(t.dataset.tab==='rankings')loadRankings();
     if(t.dataset.tab==='activity')loadActivity();
     if(t.dataset.tab==='tags')renderTagEditor();
+    if(t.dataset.tab==='orders')loadOrders();
   });
 });
 
@@ -778,7 +821,7 @@ function resetForm(){
   $('formTitle').textContent='Add a fragrance';
   $('cancelEditBtn').style.display='none';
   $('f_name').value=''; $('f_age').value='youthful'; $('f_special').value='false';
-  $('f_inspired').value=''; $('f_why').value=''; $('f_notes').value='';
+  $('f_inspired').value=''; $('f_price').value=''; $('f_why').value=''; $('f_notes').value='';
   clearImage();
   picked={profile:new Set(),effect:new Set(),occ:new Set(),time:new Set(),weather:new Set(),strength:new Set()};
   renderChipPickers();
@@ -794,6 +837,7 @@ $('saveBtn').addEventListener('click',async()=>{
     age:$('f_age').value,
     special:$('f_special').value==='true',
     inspired:$('f_inspired').value.trim(),
+    price:$('f_price').value.trim(),
     imageUrl:currentImageData||'',
     why:$('f_why').value.trim(),
     notes:$('f_notes').value,
@@ -827,6 +871,7 @@ function editFrag(f){
   $('f_age').value=f.age||'youthful';
   $('f_special').value=f.special?'true':'false';
   $('f_inspired').value=f.inspired||'';
+  $('f_price').value=f.price||'';
   $('f_why').value=f.why||'';
   $('f_notes').value=f.notes||'';
   if(f.imageUrl){ showImagePreview(f.imageUrl); } else { clearImage(); }
@@ -858,7 +903,7 @@ function renderFragList(){
     row.innerHTML=`
       <div>
         <div class="name">${f.name}${f.special?' 🎉':''}</div>
-        <div class="meta">${(f.profile||[]).join(', ')||'—'} · ${(f.occ||[]).join(', ')||'—'}</div>
+        <div class="meta">${f.price?`Ksh ${f.price} · `:''}${(f.profile||[]).join(', ')||'—'} · ${(f.occ||[]).join(', ')||'—'}</div>
       </div>
       <div class="frag-actions">
         <button data-act="edit">Edit</button>
@@ -1042,6 +1087,103 @@ function renderTagEditor(){
     });
   });
 }
+
+// ---------- Orders ----------
+let allOrders=null; // cached; re-fetched only on explicit Refresh or first tab visit
+
+async function loadOrders(){
+  $('ordersList').innerHTML='<p style="color:var(--dim);">Loading…</p>';
+  try{
+    const snap=await getDocs(collection(db,'orders'));
+    const raw=snap.docs.map(d=>{
+      const data=d.data();
+      return {id:d.id,...data,createdAtDate:(data.createdAt&&data.createdAt.toDate)?data.createdAt.toDate():null};
+    });
+    // The sequential "No." label reflects when an order was actually placed
+    // (oldest = No. 1), independent of whatever sort order is on screen.
+    raw.sort((a,b)=>(a.createdAtDate?a.createdAtDate.getTime():0)-(b.createdAtDate?b.createdAtDate.getTime():0));
+    raw.forEach((o,i)=>{ o.seq=i+1; });
+    allOrders=raw;
+  }catch(e){
+    console.error('loadOrders failed',e);
+    $('ordersList').innerHTML='<p style="color:var(--dim);">Could not load orders — check your Firestore rules include an orders match block, and check the browser console for details.</p>';
+    return;
+  }
+  renderOrders();
+}
+
+function timeOfDayBucket(date){
+  if(!date)return null;
+  const h=date.getHours();
+  if(h<12)return 'morning';
+  if(h<18)return 'afternoon';
+  return 'evening';
+}
+
+function renderOrders(){
+  const dateFilter=$('ordFilterDate').value; // 'YYYY-MM-DD' or ''
+  const timeFilter=$('ordFilterTime').value;
+  const numFilter=$('ordFilterNumber').value.trim().toLowerCase();
+
+  let filtered=(allOrders||[]).filter(o=>{
+    if(dateFilter){
+      if(!o.createdAtDate)return false;
+      const d=o.createdAtDate;
+      const iso=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+      if(iso!==dateFilter)return false;
+    }
+    if(timeFilter&&timeOfDayBucket(o.createdAtDate)!==timeFilter)return false;
+    if(numFilter&&!(String(o.orderNumber||o.id)).toLowerCase().includes(numFilter))return false;
+    return true;
+  });
+  // Most recent order first for display, regardless of the "No." sequence above.
+  filtered=[...filtered].sort((a,b)=>(b.createdAtDate?b.createdAtDate.getTime():0)-(a.createdAtDate?a.createdAtDate.getTime():0));
+
+  const list=$('ordersList');
+  if(!filtered.length){
+    list.innerHTML='<p style="color:var(--dim);padding:20px 0;">No orders match these filters.</p>';
+    return;
+  }
+  list.innerHTML=filtered.map(o=>{
+    const d=o.createdAtDate;
+    const dateStr=d?d.toLocaleDateString():'—';
+    const timeStr=d?d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):'—';
+    const itemsHTML=(o.items||[]).map(it=>`
+      <div class="order-item">
+        ${it.imageUrl?`<img src="${it.imageUrl}" alt="${it.name}">`:'<div class="order-item-noimg"></div>'}
+        <div>
+          <div class="order-item-name">${it.name}</div>
+          <div class="order-item-meta">${it.qty||1} × ${it.price?('Ksh '+it.price):'—'}</div>
+        </div>
+      </div>`).join('');
+    return `
+      <div class="order-row">
+        <div class="order-row-head">
+          <div>
+            <div class="order-seq">No. ${o.seq} · Order #${o.orderNumber||o.id}</div>
+            <div class="order-customer">${o.customerName||'—'} · ${o.whatsapp||'—'}</div>
+          </div>
+          <div class="order-datetime">${dateStr}<br>${timeStr}</div>
+        </div>
+        <div class="order-items">${itemsHTML}</div>
+        <div class="order-footer">
+          <div>${o.locationType==='custom'?`🚚 ${o.address||'Custom delivery'}`:'🏬 Store pickup'}</div>
+          <div class="order-subtotal">${o.subtotal!=null?('Ksh '+Number(o.subtotal).toLocaleString()):'—'}</div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+$('ordFilterDate').addEventListener('change',renderOrders);
+$('ordFilterTime').addEventListener('change',renderOrders);
+$('ordFilterNumber').addEventListener('input',renderOrders);
+$('ordClearFiltersBtn').addEventListener('click',()=>{
+  $('ordFilterDate').value='';
+  $('ordFilterTime').value='';
+  $('ordFilterNumber').value='';
+  renderOrders();
+});
+$('ordRefreshBtn').addEventListener('click',loadOrders);
 </script>
 </body>
 </html>
