@@ -465,11 +465,11 @@ function applySiteContent(){
   }
 }
 function applySiteColors(){
-  const targets=[document.body,document.querySelector('.quiz-panel')].filter(Boolean);
-  targets.forEach(el=>{
-    if(SITE_CONFIG.accent){ el.style.setProperty('--accent',SITE_CONFIG.accent); el.style.setProperty('--accent2',SITE_CONFIG.accent); el.style.setProperty('--accent-line',SITE_CONFIG.accent); }
-    if(SITE_CONFIG.bg){ el.style.setProperty('--bg',SITE_CONFIG.bg); el.style.setProperty('--bg2',SITE_CONFIG.bg); }
-  });
+  // Theme is permanently locked to black & white. Older saved `accent`/`bg`
+  // values may still exist in Firestore's config/site doc (that's what was
+  // causing the site to flash black & white then flip back to old colours
+  // once this loaded) — intentionally ignored here so the palette can never
+  // drift again, no matter what's stored.
 }
 function applySiteBackground(){
   if(SITE_CONFIG.background){

@@ -136,14 +136,10 @@ input:focus,textarea:focus,select:focus{outline:none;border-color:var(--accent);
 
     <div class="card">
       <h2 style="font-family:'Playfair Display',serif;font-size:18px;margin-bottom:6px;">Site copy & colours</h2>
-      <p class="hint" style="margin-top:0;">Edit the cover page's headline and intro text, plus the site's accent and background colours. Leave a colour blank to use the default.</p>
+      <p class="hint" style="margin-top:0;">Edit the cover page's headline and intro text. The site's colour palette is locked to black & white, so it isn't editable here.</p>
       <div class="field"><label>Cover headline</label><input id="cfg_heroTitle" placeholder="YOUR SIGNATURE SCENT STARTS HERE."></div>
       <div class="field"><label>Cover subtitle</label><textarea id="cfg_heroSub" style="min-height:90px;" placeholder="Finding the right fragrance can be difficult..."></textarea></div>
-      <div class="row2">
-        <div class="field"><label>Accent colour</label><input id="cfg_accent" type="text" placeholder="#000000"></div>
-        <div class="field"><label>Background colour</label><input id="cfg_bg" type="text" placeholder="#ffffff"></div>
-      </div>
-      <button class="btn primary" id="saveContentBtn" style="margin-top:6px;">Save site copy & colours</button>
+      <button class="btn primary" id="saveContentBtn" style="margin-top:6px;">Save site copy</button>
       <div id="contentSaveMsg"></div>
     </div>
 
@@ -695,8 +691,6 @@ async function loadSiteConfig(){
   }catch(e){ console.error('Could not load site config',e); siteConfig={}; }
   $('cfg_heroTitle').value=siteConfig.heroTitle||'';
   $('cfg_heroSub').value=siteConfig.heroSub||'';
-  $('cfg_accent').value=siteConfig.accent||'';
-  $('cfg_bg').value=siteConfig.bg||'';
   $('cfg_whatsappNumber').value=siteConfig.whatsappNumber||'';
   showBgPreview(siteConfig.background||null);
 }
@@ -707,8 +701,10 @@ $('saveContentBtn').addEventListener('click',async()=>{
     await setDoc(doc(db,'config','site'),{
       heroTitle:$('cfg_heroTitle').value.trim(),
       heroSub:$('cfg_heroSub').value.trim(),
-      accent:$('cfg_accent').value.trim(),
-      bg:$('cfg_bg').value.trim()
+      // Clear any old accent/bg values left over from before the theme was
+      // locked to black & white, so they can't resurface anywhere.
+      accent:'',
+      bg:''
     },{merge:true});
     $('contentSaveMsg').innerHTML='<div class="msg ok">Saved — refresh the live quiz to see it.</div>';
   }catch(e){
