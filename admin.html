@@ -8,17 +8,17 @@
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700&family=Inter:wght@300;400;500;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <style>
 :root{
-  --bg:#0b0a08; --bg2:#151210; --text:#f3ede2; --dim:rgba(243,237,226,.58); --dimmer:rgba(243,237,226,.32);
-  --line:rgba(243,237,226,.10); --line-s:rgba(243,237,226,.20);
-  --accent:#5a86ab; --accent2:#8fb3d1; --accent-soft:rgba(90,134,171,.14); --accent-line:rgba(90,134,171,.42);
-  --ink:#0b0a08; --paper:#f3ede2; --danger:#c9827c;
+  --bg:#ffffff; --bg2:#f3f3f3; --text:#0a0a0a; --dim:rgba(10,10,10,.62); --dimmer:rgba(10,10,10,.40);
+  --line:rgba(10,10,10,.14); --line-s:rgba(10,10,10,.28);
+  --accent:#000000; --accent2:#000000; --accent-soft:rgba(0,0,0,.06); --accent-line:rgba(0,0,0,.55);
+  --ink:#ffffff; --paper:#000000; --danger:#000000;
 }
 *{box-sizing:border-box;margin:0;padding:0;}
 body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;min-height:100vh;-webkit-font-smoothing:antialiased;}
 .w{max-width:980px;margin:0 auto;padding:28px 24px 80px;}
 h1{font-family:'Playfair Display',serif;font-weight:700;font-size:26px;margin-bottom:4px;}
 .sub{color:var(--dim);font-size:13px;margin-bottom:28px;}
-label{display:block;font-family:'Space Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--accent2);margin-bottom:6px;}
+label{display:block;font-family:'Space Mono',monospace;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--accent2);margin-bottom:6px;}
 input,textarea,select{width:100%;font-family:'Inter',sans-serif;font-size:14px;padding:10px 12px;border:1.5px solid var(--line-s);border-radius:8px;background:var(--bg2);color:var(--text);}
 textarea{min-height:70px;resize:vertical;line-height:1.5;}
 input:focus,textarea:focus,select:focus{outline:none;border-color:var(--accent);}
@@ -28,9 +28,9 @@ input:focus,textarea:focus,select:focus{outline:none;border-color:var(--accent);
 .btn{font-family:'Space Mono',monospace;font-size:12px;text-transform:uppercase;letter-spacing:.08em;padding:12px 22px;border-radius:8px;cursor:pointer;font-weight:700;border:1.5px solid var(--line-s);background:transparent;color:var(--text);transition:all .15s;}
 .btn:hover{border-color:var(--text);}
 .btn.primary{background:var(--paper);color:var(--ink);border-color:var(--paper);}
-.btn.primary:hover{background:var(--accent);border-color:var(--accent);color:var(--ink);}
-.btn.danger{color:var(--danger);border-color:var(--danger);}
-.btn.danger:hover{background:var(--danger);color:var(--ink);}
+.btn.primary:hover{background:#fff;border-color:#000;color:#000;}
+.btn.danger{color:var(--danger);border-color:var(--danger);border-style:dashed;font-weight:700;}
+.btn.danger:hover{background:var(--danger);color:var(--ink);border-style:solid;}
 .btn:disabled{opacity:.4;pointer-events:none;}
 .card{background:var(--bg2);border:1px solid var(--line);border-radius:14px;padding:22px 24px;margin-bottom:20px;}
 .login-wrap{max-width:360px;margin:120px auto;}
@@ -43,7 +43,7 @@ input:focus,textarea:focus,select:focus{outline:none;border-color:var(--accent);
 .frag-row .name{font-weight:600;}
 .frag-row .meta{font-size:11px;color:var(--dimmer);font-family:'Space Mono',monospace;margin-top:3px;}
 .frag-actions{display:flex;gap:8px;}
-.frag-actions button{font-family:'Space Mono',monospace;font-size:10px;text-transform:uppercase;padding:7px 12px;border-radius:6px;border:1px solid var(--line-s);background:transparent;color:var(--dim);cursor:pointer;}
+.frag-actions button{font-family:'Space Mono',monospace;font-size:11px;text-transform:uppercase;padding:7px 12px;border-radius:6px;border:1px solid var(--line-s);background:transparent;color:var(--dim);cursor:pointer;}
 .frag-actions button:hover{color:var(--text);border-color:var(--text);}
 .chip-picker{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px;}
 .chip{font-size:12px;padding:7px 12px;border-radius:99px;border:1.5px solid var(--line-s);background:var(--bg2);cursor:pointer;color:var(--dim);}
@@ -72,7 +72,7 @@ input:focus,textarea:focus,select:focus{outline:none;border-color:var(--accent);
 .order-datetime{font-family:'Space Mono',monospace;font-size:11px;color:var(--dimmer);text-align:right;white-space:nowrap;}
 .order-items{display:flex;flex-direction:column;gap:8px;margin-bottom:12px;}
 .order-item{display:flex;gap:10px;align-items:center;}
-.order-item img,.order-item-noimg{width:40px;height:40px;object-fit:contain;background:#fff;border-radius:6px;flex-shrink:0;}
+.order-item img,.order-item-noimg{width:40px;height:40px;object-fit:contain;background:#fff;border:1px solid var(--line);border-radius:6px;flex-shrink:0;}
 .order-item-noimg{background:var(--bg);}
 .order-item-name{font-size:13px;font-weight:600;}
 .order-item-meta{font-size:11.5px;color:var(--dimmer);}
@@ -81,7 +81,7 @@ input:focus,textarea:focus,select:focus{outline:none;border-color:var(--accent);
 .tag-edit-row{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--line);}
 .tag-edit-row .emoji-input{width:48px;text-align:center;font-size:16px;padding:8px 4px;flex-shrink:0;}
 .tag-edit-row .label-input{flex:1;}
-.tag-edit-row .tagkey{font-family:'Space Mono',monospace;font-size:10px;color:var(--dimmer);width:90px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.tag-edit-row .tagkey{font-family:'Space Mono',monospace;font-size:11px;color:var(--dimmer);width:90px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .tag-edit-row button{flex-shrink:0;}
 .drop-zone{border:2px dashed var(--line-s);border-radius:12px;padding:26px;text-align:center;cursor:pointer;color:var(--dim);transition:all .15s;background:var(--bg2);}
 .drop-zone:hover,.drop-zone.dragover{border-color:var(--accent);background:var(--accent-soft);color:var(--text);}
@@ -140,8 +140,8 @@ input:focus,textarea:focus,select:focus{outline:none;border-color:var(--accent);
       <div class="field"><label>Cover headline</label><input id="cfg_heroTitle" placeholder="YOUR SIGNATURE SCENT STARTS HERE."></div>
       <div class="field"><label>Cover subtitle</label><textarea id="cfg_heroSub" style="min-height:90px;" placeholder="Finding the right fragrance can be difficult..."></textarea></div>
       <div class="row2">
-        <div class="field"><label>Accent colour</label><input id="cfg_accent" type="text" placeholder="#3d6489"></div>
-        <div class="field"><label>Background colour</label><input id="cfg_bg" type="text" placeholder="#0b0a08"></div>
+        <div class="field"><label>Accent colour</label><input id="cfg_accent" type="text" placeholder="#000000"></div>
+        <div class="field"><label>Background colour</label><input id="cfg_bg" type="text" placeholder="#ffffff"></div>
       </div>
       <button class="btn primary" id="saveContentBtn" style="margin-top:6px;">Save site copy & colours</button>
       <div id="contentSaveMsg"></div>
@@ -1029,7 +1029,7 @@ $('resetRankingsBtn').addEventListener('click',async()=>{
 // ---------- Activity (starts / completions / bundle pie chart) ----------
 let allStarts=null; // cached: [{id, ts}, ...]
 const BUNDLE_LABELS={single:'Single',duo:'Dynamic Duo',trio:'Mancave Trio'};
-const BUNDLE_COLORS={single:'#5a86ab',duo:'#c9a25a',trio:'#8fa66b'};
+const BUNDLE_COLORS={single:'#000000',duo:'#555555',trio:'#999999'};
 
 async function fetchStartsIfNeeded(){
   if(allStarts)return;
