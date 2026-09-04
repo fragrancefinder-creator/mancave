@@ -453,7 +453,7 @@ function buildDynamicTagOptions(){
 
 // Site copy, colours & background image — set from admin's "Site copy & colours" /
 // "Site theme background" cards (config/site doc in Firestore).
-let SITE_CONFIG={heroTitle:'',heroSub:'',accent:'',bg:'',background:''};
+let SITE_CONFIG={heroTitle:'',heroSub:'',accent:'',bg:'',background:'',whatsappNumber:'254745953367'};
 
 function applySiteContent(){
   if(SITE_CONFIG.heroTitle){
@@ -717,8 +717,7 @@ async function enableAddressAutocomplete(){
   const input=document.getElementById('chkAddress');
   if(!input||addressAutocomplete)return;
   addressAutocomplete=new google.maps.places.Autocomplete(input,{
-    fields:['formatted_address','geometry'],
-    componentRestrictions:{country:'ke'} // biases suggestions to Kenya, where the store operates
+    fields:['formatted_address','geometry']
   });
 }
 
@@ -802,7 +801,8 @@ document.getElementById('placeOrderBtn').addEventListener('click',async()=>{
     `*${locationType==='custom'?'Delivery to':'Pickup'}:* ${orderData.address}`
   ];
   const text=encodeURIComponent(lines.join('\n'));
-  window.open(`https://wa.me/254745953367?text=${text}`,'_blank');
+  const waNumber=(SITE_CONFIG.whatsappNumber||'254745953367').replace(/\D/g,'');
+  window.open(`https://wa.me/${waNumber}?text=${text}`,'_blank');
 
   msgEl.innerHTML=`<div class="msg ok">Order #${orderNumber} placed — continue in the WhatsApp chat that just opened.</div>`;
   cart=[];

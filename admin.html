@@ -148,6 +148,14 @@ input:focus,textarea:focus,select:focus{outline:none;border-color:var(--accent);
     </div>
 
     <div class="card">
+      <h2 style="font-family:'Playfair Display',serif;font-size:18px;margin-bottom:6px;">Orders & WhatsApp</h2>
+      <p class="hint" style="margin-top:0;">The number every completed order gets sent to. Include the country code, digits only (e.g. Kenya: 254745953367).</p>
+      <div class="field"><label>WhatsApp order number</label><input id="cfg_whatsappNumber" type="text" placeholder="254745953367"></div>
+      <button class="btn primary" id="saveWhatsappBtn" style="margin-top:6px;">Save WhatsApp number</button>
+      <div id="whatsappSaveMsg"></div>
+    </div>
+
+    <div class="card">
       <h2 style="font-family:'Playfair Display',serif;font-size:18px;margin-bottom:6px;">Site theme background</h2>
       <p class="hint" style="margin-top:0;">Optional — an image shown behind the whole site. Without one, the site just uses its plain colour gradient above.</p>
       <div id="dropZoneBg" class="drop-zone">
@@ -689,6 +697,7 @@ async function loadSiteConfig(){
   $('cfg_heroSub').value=siteConfig.heroSub||'';
   $('cfg_accent').value=siteConfig.accent||'';
   $('cfg_bg').value=siteConfig.bg||'';
+  $('cfg_whatsappNumber').value=siteConfig.whatsappNumber||'';
   showBgPreview(siteConfig.background||null);
 }
 $('saveContentBtn').addEventListener('click',async()=>{
@@ -706,6 +715,25 @@ $('saveContentBtn').addEventListener('click',async()=>{
     $('contentSaveMsg').innerHTML=`<div class="msg err">${e.message}</div>`;
   }
   $('saveContentBtn').disabled=false;
+});
+
+// ---------- Orders & WhatsApp ----------
+$('saveWhatsappBtn').addEventListener('click',async()=>{
+  $('whatsappSaveMsg').innerHTML='';
+  const digitsOnly=$('cfg_whatsappNumber').value.replace(/\D/g,'');
+  if(!digitsOnly){
+    $('whatsappSaveMsg').innerHTML='<div class="msg err">Please enter a number, digits only (include the country code).</div>';
+    return;
+  }
+  $('saveWhatsappBtn').disabled=true;
+  try{
+    await setDoc(doc(db,'config','site'),{ whatsappNumber:digitsOnly },{merge:true});
+    $('cfg_whatsappNumber').value=digitsOnly;
+    $('whatsappSaveMsg').innerHTML='<div class="msg ok">Saved — new orders will now go to this number.</div>';
+  }catch(e){
+    $('whatsappSaveMsg').innerHTML=`<div class="msg err">${e.message}</div>`;
+  }
+  $('saveWhatsappBtn').disabled=false;
 });
 
 // ---------- Site theme background ----------
