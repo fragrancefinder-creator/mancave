@@ -152,7 +152,7 @@ input:focus,textarea:focus,select:focus{outline:none;border-color:var(--accent);
 
       <div style="margin-top:22px;padding-top:20px;border-top:1px solid var(--line);">
         <label style="display:block;margin-bottom:6px;">WhatsApp order message</label>
-        <p class="hint" style="margin-top:0;">This is the message that opens pre-filled in the customer's WhatsApp when they complete checkout. Use <code>{order_number}</code> and <code>{order_details}</code> anywhere you want the order number and the itemized items/subtotal/delivery details inserted.</p>
+        <p class="hint" style="margin-top:0;">This is the message that opens pre-filled in the customer's WhatsApp when they complete checkout. Use <code>{order_number}</code> and <code>{order_details}</code> anywhere you want the order number and the itemized items/subtotal/delivery details inserted (the fragrance lines, subtotal, and delivery line are already sent in bold). Wrap any other text in single asterisks, like <code>*this*</code>, to make it bold in WhatsApp.</p>
         <textarea id="cfg_orderMessageTemplate" style="min-height:180px;font-family:'Space Mono',monospace;font-size:13px;"></textarea>
         <button class="btn" id="resetOrderMessageBtn" style="margin-top:10px;">Reset to default</button>
         <button class="btn primary" id="saveOrderMessageBtn" style="margin-top:10px;">Save message template</button>
@@ -700,7 +700,7 @@ const DEFAULT_ORDER_MESSAGE_TEMPLATE=`Thank you for completing your order with M
 Order details: #{order_number}
 {order_details}
 
-Please note: We don’t keep stock in stores. Orders placed before 3 PM are delivered by the end of the following day, while orders placed after 3 PM may take up to 48 hours.
+*Please note:* We don’t keep stock in stores. Orders placed before 3 PM are delivered by the end of the following day, while orders placed after 3 PM may take up to 48 hours.
 
 We apologize for any inconvenience and appreciate your patience as we work to ensure a smooth experience for both our partners and clients.`;
 

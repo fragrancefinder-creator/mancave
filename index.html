@@ -463,7 +463,7 @@ const DEFAULT_ORDER_MESSAGE_TEMPLATE=`Thank you for completing your order with M
 Order details: #{order_number}
 {order_details}
 
-Please note: We don’t keep stock in stores. Orders placed before 3 PM are delivered by the end of the following day, while orders placed after 3 PM may take up to 48 hours.
+*Please note:* We don’t keep stock in stores. Orders placed before 3 PM are delivered by the end of the following day, while orders placed after 3 PM may take up to 48 hours.
 
 We apologize for any inconvenience and appreciate your patience as we work to ensure a smooth experience for both our partners and clients.`;
 
@@ -782,6 +782,14 @@ document.getElementById('placeOrderBtn').addEventListener('click',async()=>{
   const btn=document.getElementById('placeOrderBtn');
   btn.disabled=true; btn.textContent='Placing order…';
 
+  // Open the WhatsApp tab right now, synchronously, as a direct result of
+  // this click. Mobile browsers and ad/pop-up blockers only allow
+  // window.open() when it happens in the same tick as a real user gesture —
+  // opening it after the `await` below (once the order finishes saving)
+  // gets flagged as an unsolicited popup and blocked. We point this blank
+  // tab at the real WhatsApp link once we have it.
+  const waWin=window.open('','_blank');
+
   const subtotal=cartSubtotal();
   const orderData={
     customerName:name,
@@ -797,16 +805,17 @@ document.getElementById('placeOrderBtn').addEventListener('click',async()=>{
     orderNumber=await submitOrderWithUniqueNumber(orderData);
   }catch(e){
     console.error('Could not save order',e);
+    if(waWin)waWin.close();
     msgEl.innerHTML='<div class="msg err">Something went wrong saving your order — please try again.</div>';
     btn.disabled=false; btn.textContent='Place order via WhatsApp →';
     return;
   }
 
   const orderDetailsBlock=[
-    ...cart.map(i=>`${i.name} x${i.qty}${i.price?` — Ksh ${i.price}`:''}`),
+    ...cart.map(i=>`*${i.name} x${i.qty}${i.price?` — Ksh ${i.price}`:''}*`),
     ``,
-    `Subtotal: ${formatKsh(subtotal)}`,
-    `${locationType==='custom'?'Delivery to':'Pickup'}: ${orderData.address}`
+    `*Subtotal: ${formatKsh(subtotal)}*`,
+    `*${locationType==='custom'?'Delivery to':'Pickup'}: ${orderData.address}*`
   ].join('\n');
 
   const template=SITE_CONFIG.orderMessageTemplate||DEFAULT_ORDER_MESSAGE_TEMPLATE;
@@ -816,9 +825,16 @@ document.getElementById('placeOrderBtn').addEventListener('click',async()=>{
 
   const text=encodeURIComponent(messageText);
   const waNumber=(SITE_CONFIG.whatsappNumber||'254745953367').replace(/\D/g,'');
-  window.open(`https://wa.me/${waNumber}?text=${text}`,'_blank');
+  const waUrl=`https://wa.me/${waNumber}?text=${text}`;
 
-  msgEl.innerHTML=`<div class="msg ok">Order #${orderNumber} placed — continue in the WhatsApp chat that just opened.</div>`;
+  if(waWin&&!waWin.closed){
+    waWin.location.href=waUrl;
+    msgEl.innerHTML=`<div class="msg ok">Order #${orderNumber} placed — continue in the WhatsApp tab that just opened.</div>`;
+  }else{
+    // The blank tab itself got blocked — fall back to a direct link the
+    // customer can tap instead of a pop-up.
+    msgEl.innerHTML=`<div class="msg ok">Order #${orderNumber} placed. <a href="${waUrl}" target="_blank" rel="noopener">Tap here to continue in WhatsApp</a> (your browser blocked the automatic pop-up).</div>`;
+  }
   cart=[];
   renderCart();
   btn.disabled=false; btn.textContent='Place order via WhatsApp →';
