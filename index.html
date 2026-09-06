@@ -304,6 +304,9 @@ select.form-input{cursor:pointer;}
   <div class="res-signature">Yours.</div>
   <p class="res-sub" id="resultsSub">These are the fragrances that best fit what you told us — but fragrance is personal. Try the samples, see how they develop on your skin, and decide which one feels most like you.</p>
   <div id="matchList"></div>
+  <div class="restart-row" style="margin:18px 0;">
+    <button class="btn primary" id="goToCartBtn">Go to Cart</button>
+  </div>
   <div class="try-note">
     <h3>Try your matches</h3>
     <p>Fragrance behaves differently on every skin. Sample each one in-store, wear it for a few hours, and trust how it develops — not just the first spray.</p>
@@ -628,6 +631,7 @@ const cartPanel=document.getElementById('cartPanel');
 function openCart(){ cartOverlay.classList.add('open'); cartPanel.classList.add('open'); }
 function closeCart(){ cartOverlay.classList.remove('open'); cartPanel.classList.remove('open'); }
 document.getElementById('cartToggleBtn').addEventListener('click',openCart);
+document.getElementById('goToCartBtn').addEventListener('click',openCart);
 document.getElementById('cartCloseBtn').addEventListener('click',closeCart);
 cartOverlay.addEventListener('click',closeCart);
 

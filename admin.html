@@ -121,18 +121,16 @@ input:focus,textarea:focus,select:focus{outline:none;border-color:var(--accent);
   </div>
 
   <div class="tabs">
-    <div class="tab active" data-tab="catalog">Catalog</div>
+    <div class="tab active" data-tab="general">General</div>
+    <div class="tab" data-tab="catalog">Catalog</div>
     <div class="tab" data-tab="rankings">Rankings</div>
     <div class="tab" data-tab="activity">Activity</div>
     <div class="tab" data-tab="tags">Tags</div>
     <div class="tab" data-tab="orders">Orders</div>
+    <div class="tab" data-tab="recyclebin">Recycle Bin</div>
   </div>
 
-  <div class="tabpanel active" id="tab-catalog">
-    <div id="seedCard" class="card" style="display:none;">
-      <p style="margin-bottom:12px;">Your fragrance collection is empty. Load the starting 16 fragrances to begin?</p>
-      <button class="btn primary" id="seedBtn">Load starting catalog</button>
-    </div>
+  <div class="tabpanel active" id="tab-general">
 
     <div class="card">
       <h2 style="font-family:'Playfair Display',serif;font-size:18px;margin-bottom:6px;">Site copy & colours</h2>
@@ -184,6 +182,14 @@ input:focus,textarea:focus,select:focus{outline:none;border-color:var(--accent);
       <h2 style="font-family:'Playfair Display',serif;font-size:18px;margin-bottom:6px;">Quiz questions</h2>
       <p class="hint" style="margin-top:0;">Turn a question off to remove it from the live quiz entirely — the step counter adjusts automatically to match however many are left on.</p>
       <div id="questionToggles"></div>
+    </div>
+
+  </div>
+
+  <div class="tabpanel" id="tab-catalog">
+    <div id="seedCard" class="card" style="display:none;">
+      <p style="margin-bottom:12px;">Your fragrance collection is empty. Load the starting 16 fragrances to begin?</p>
+      <button class="btn primary" id="seedBtn">Load starting catalog</button>
     </div>
 
     <div class="card">
@@ -346,6 +352,12 @@ input:focus,textarea:focus,select:focus{outline:none;border-color:var(--accent);
 
       <h2 style="font-family:'Playfair Display',serif;font-size:18px;margin-bottom:16px;">Bundle choice (of completed quizzes)</h2>
       <div id="bundleBars"></div>
+
+      <div style="margin-top:24px;padding-top:20px;border-top:1px solid var(--line);">
+        <p class="hint" style="margin-bottom:10px;">Resetting doesn't delete activity data outright — it moves every logged quiz start into the Recycle Bin, where it stays recoverable for 30 days before being permanently deleted. This zeroes out the "Started" counter above; "Completed" comes from the same records as the Rankings tab, so reset those from Rankings if you want that counter back to zero too.</p>
+        <button class="btn danger" id="resetActivityBtn">Reset All</button>
+        <div id="resetActivityMsg"></div>
+      </div>
     </div>
   </div>
 
@@ -380,13 +392,40 @@ input:focus,textarea:focus,select:focus{outline:none;border-color:var(--accent);
       <button class="btn" id="ordRefreshBtn" style="margin-left:8px;">Refresh</button>
     </div>
     <div id="ordersList"></div>
+
+    <div class="card" style="margin-top:20px;">
+      <h2 style="font-family:'Playfair Display',serif;font-size:16px;margin-bottom:10px;">Reset orders</h2>
+      <p class="hint" style="margin-top:0;">Resetting doesn't delete orders outright — they're moved to the Recycle Bin, where they stay recoverable for 30 days before being permanently deleted.</p>
+
+      <div class="row3" style="align-items:end;">
+        <div class="field"><label>From date</label><input type="date" id="ordResetFrom"></div>
+        <div class="field"><label>To date</label><input type="date" id="ordResetTo"></div>
+        <div class="field"><label>Order number(s)</label><input type="text" id="ordResetNumbers" placeholder="e.g. 482, 501, 519"></div>
+      </div>
+      <p class="hint" style="margin-top:0;">Set a date range, specific order number(s) (comma-separated), or both — orders matching all the criteria you fill in will be reset.</p>
+      <button class="btn danger" id="resetSelectedOrdersBtn">Reset Selected</button>
+      <div id="resetSelectedMsg"></div>
+
+      <div style="margin-top:20px;padding-top:20px;border-top:1px solid var(--line);">
+        <p class="hint" style="margin-top:0;">This resets every order currently in the system, regardless of the fields above.</p>
+        <button class="btn danger" id="resetAllOrdersBtn">Reset All Orders</button>
+        <div id="resetAllOrdersMsg"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tabpanel" id="tab-recyclebin">
+    <div class="card">
+      <p class="hint" style="margin-top:0;">Activity and orders you reset land here instead of being deleted right away. Each record stays recoverable for 30 days, then is automatically and permanently deleted. Because this site has no background server, that automatic cleanup happens the next time this tab (or the admin panel) is opened after a record's 30 days are up, rather than at the exact moment they expire.</p>
+      <div id="recycleBinList"></div>
+    </div>
   </div>
 </div>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { getFirestore, collection, getDocs, getDoc, addDoc, updateDoc, deleteDoc, setDoc, doc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { getFirestore, collection, getDocs, getDoc, addDoc, updateDoc, deleteDoc, setDoc, doc, writeBatch, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAOuVpsJlJuWJyfpOB_NB1Vo0ZDvb7mP44",
@@ -544,6 +583,7 @@ document.querySelectorAll('.tab').forEach(t=>{
     if(t.dataset.tab==='activity')loadActivity();
     if(t.dataset.tab==='tags')renderTagEditor();
     if(t.dataset.tab==='orders')loadOrders();
+    if(t.dataset.tab==='recyclebin')loadRecycleBin();
   });
 });
 
@@ -555,6 +595,7 @@ async function initApp(){
   renderFragList();
   try{ await loadSiteConfig(); }catch(e){ console.error('loadSiteConfig failed',e); }
   try{ await loadQuestionConfig(); }catch(e){ console.error('loadQuestionConfig failed',e); }
+  try{ await sweepExpiredRecycleBin(); }catch(e){ console.error('Recycle bin sweep failed',e); }
 }
 
 async function loadCatalog(){
@@ -979,6 +1020,145 @@ function renderFragList(){
   });
 }
 
+// ---------- Recycle Bin (shared by Activity resets & Orders resets) ----------
+const RECYCLE_RETENTION_DAYS=30;
+
+async function fetchRawDocs(collectionName){
+  const snap=await getDocs(collection(db,collectionName));
+  return snap.docs.map(d=>({id:d.id,data:d.data()}));
+}
+
+// Moves the given {id,data} entries from sourceCollection into recycle_bin,
+// preserving their original id/collection so they can be restored later.
+// Firestore batches cap at 500 writes, and each entry here is 2 writes
+// (recycle_bin set + source delete), so we chunk into groups of 200.
+async function recycleDocs(sourceCollection,type,entries){
+  if(!entries.length)return;
+  const CHUNK=200;
+  for(let i=0;i<entries.length;i+=CHUNK){
+    const chunk=entries.slice(i,i+CHUNK);
+    const batch=writeBatch(db);
+    chunk.forEach(({id,data})=>{
+      const binRef=doc(collection(db,'recycle_bin'));
+      batch.set(binRef,{ type, sourceCollection, originalId:id, data, deletedAt:serverTimestamp() });
+      batch.delete(doc(db,sourceCollection,id));
+    });
+    await batch.commit();
+  }
+}
+
+// Permanently deletes any recycle_bin record whose 30 days are already up.
+// There's no server/cron in this app, so this runs whenever the admin panel
+// loads and whenever the Recycle Bin tab is opened — records past their date
+// disappear the next time either of those happens, not the instant they expire.
+async function sweepExpiredRecycleBin(){
+  const snap=await getDocs(collection(db,'recycle_bin'));
+  const cutoff=Date.now()-RECYCLE_RETENTION_DAYS*24*60*60*1000;
+  const expired=snap.docs.filter(d=>{
+    const t=d.data().deletedAt;
+    const ms=t&&t.toDate?t.toDate().getTime():0;
+    return ms&&ms<cutoff;
+  });
+  if(!expired.length)return;
+  const CHUNK=400;
+  for(let i=0;i<expired.length;i+=CHUNK){
+    const chunk=expired.slice(i,i+CHUNK);
+    const batch=writeBatch(db);
+    chunk.forEach(d=>batch.delete(doc(db,'recycle_bin',d.id)));
+    await batch.commit();
+  }
+}
+
+let allRecycled=null;
+
+async function loadRecycleBin(){
+  $('recycleBinList').innerHTML='<p style="color:var(--dim);">Loading…</p>';
+  try{
+    await sweepExpiredRecycleBin();
+    const snap=await getDocs(collection(db,'recycle_bin'));
+    allRecycled=snap.docs.map(d=>{
+      const data=d.data();
+      return {id:d.id,...data,deletedAtDate:(data.deletedAt&&data.deletedAt.toDate)?data.deletedAt.toDate():null};
+    });
+    allRecycled.sort((a,b)=>(b.deletedAtDate?b.deletedAtDate.getTime():0)-(a.deletedAtDate?a.deletedAtDate.getTime():0));
+  }catch(e){
+    console.error('loadRecycleBin failed',e);
+    $('recycleBinList').innerHTML='<p style="color:var(--dim);">Could not load the Recycle Bin — check your Firestore rules include a recycle_bin match block, and check the browser console for details.</p>';
+    return;
+  }
+  renderRecycleBin();
+}
+
+function recycleDaysLeft(deletedAtDate){
+  if(!deletedAtDate)return RECYCLE_RETENTION_DAYS;
+  const msLeft=(deletedAtDate.getTime()+RECYCLE_RETENTION_DAYS*24*60*60*1000)-Date.now();
+  return Math.max(0,Math.ceil(msLeft/(24*60*60*1000)));
+}
+
+function describeRecycledRecord(r){
+  const d=r.data||{};
+  if(r.type==='order'){
+    return `Order #${d.orderNumber||r.originalId} · ${d.customerName||'—'} · ${d.subtotal!=null?('Ksh '+Number(d.subtotal).toLocaleString()):'—'}`;
+  }
+  if(r.type==='activity'){
+    const ts=d.ts&&d.ts.toDate?d.ts.toDate():null;
+    return `Quiz start · ${ts?ts.toLocaleString():'—'}`;
+  }
+  return `${r.type||'Record'} · ${r.originalId}`;
+}
+
+function renderRecycleBin(){
+  const list=$('recycleBinList');
+  if(!allRecycled||!allRecycled.length){
+    list.innerHTML='<p style="color:var(--dim);padding:20px 0;">The Recycle Bin is empty.</p>';
+    return;
+  }
+  list.innerHTML=allRecycled.map(r=>`
+    <div class="order-row" data-bin-id="${r.id}">
+      <div class="order-row-head">
+        <div>
+          <div class="order-seq">${r.type==='order'?'🧾 Order':'📊 Activity'}</div>
+          <div class="order-customer">${describeRecycledRecord(r)}</div>
+        </div>
+        <div class="order-datetime">Removed ${r.deletedAtDate?r.deletedAtDate.toLocaleDateString():'—'}<br>${recycleDaysLeft(r.deletedAtDate)} day(s) left</div>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:12px;">
+        <button class="btn" data-act="restore">Restore</button>
+        <button class="btn danger" data-act="delete-now">Delete now</button>
+      </div>
+    </div>`).join('');
+  list.querySelectorAll('[data-bin-id]').forEach(row=>{
+    const binId=row.dataset.binId;
+    const record=allRecycled.find(r=>r.id===binId);
+    row.querySelector('[data-act="restore"]').addEventListener('click',async()=>{
+      if(!confirm('Restore this record back to its original tab?'))return;
+      try{
+        await setDoc(doc(db,record.sourceCollection,record.originalId),record.data);
+        await deleteDoc(doc(db,'recycle_bin',record.id));
+        allRecycled=allRecycled.filter(r=>r.id!==record.id);
+        renderRecycleBin();
+        // Invalidate the relevant cache so the restored record shows up next time that tab is viewed.
+        if(record.type==='order')allOrders=null;
+        if(record.type==='activity')allStarts=null;
+      }catch(e){
+        console.error('Restore failed',e);
+        alert('Could not restore this record — check the console.');
+      }
+    });
+    row.querySelector('[data-act="delete-now"]').addEventListener('click',async()=>{
+      if(!confirm("Permanently delete this record? This can't be undone."))return;
+      try{
+        await deleteDoc(doc(db,'recycle_bin',record.id));
+        allRecycled=allRecycled.filter(r=>r.id!==record.id);
+        renderRecycleBin();
+      }catch(e){
+        console.error('Delete now failed',e);
+        alert('Could not delete this record — check the console.');
+      }
+    });
+  });
+}
+
 // ---------- Rankings ----------
 let allResults=null; // cached raw docs: [{id, names, ts (Date|null)}, ...]
 
@@ -1115,6 +1295,25 @@ function renderActivity(){
     </div>`).join('');
 }
 
+$('resetActivityBtn').addEventListener('click',async()=>{
+  if(!(allStarts&&allStarts.length)){ alert('No activity to reset.'); return; }
+  if(!confirm(`Move all ${allStarts.length} logged quiz starts to the Recycle Bin? They'll stay recoverable there for 30 days.`))return;
+  $('resetActivityBtn').disabled=true;
+  $('resetActivityBtn').textContent='Resetting…';
+  try{
+    const entries=await fetchRawDocs('quiz_starts');
+    await recycleDocs('quiz_starts','activity',entries);
+    allStarts=[];
+    renderActivity();
+    $('resetActivityMsg').innerHTML='<div class="msg ok">Activity moved to the Recycle Bin.</div>';
+  }catch(e){
+    console.error('Reset activity failed',e);
+    $('resetActivityMsg').innerHTML=`<div class="msg err">${e.message}</div>`;
+  }
+  $('resetActivityBtn').disabled=false;
+  $('resetActivityBtn').textContent='Reset All';
+});
+
 // ---------- Tags editor ----------
 function renderTagEditor(){
   ['profile','effect','occ'].forEach(category=>{
@@ -1248,6 +1447,81 @@ $('ordClearFiltersBtn').addEventListener('click',()=>{
   renderOrders();
 });
 $('ordRefreshBtn').addEventListener('click',loadOrders);
+
+function ordersMatchingResetSelection(){
+  const from=$('ordResetFrom').value; // 'YYYY-MM-DD' or ''
+  const to=$('ordResetTo').value;
+  const numbersRaw=$('ordResetNumbers').value.trim();
+  const wantedNumbers=numbersRaw?numbersRaw.split(',').map(s=>s.trim()).filter(Boolean):null;
+  if(!from&&!to&&!wantedNumbers)return null; // nothing specified
+
+  return (allOrders||[]).filter(o=>{
+    if(from){
+      if(!o.createdAtDate)return false;
+      if(o.createdAtDate<new Date(from+'T00:00:00'))return false;
+    }
+    if(to){
+      if(!o.createdAtDate)return false;
+      if(o.createdAtDate>new Date(to+'T23:59:59.999'))return false;
+    }
+    if(wantedNumbers&&!wantedNumbers.includes(String(o.orderNumber||o.id)))return false;
+    return true;
+  });
+}
+
+$('resetSelectedOrdersBtn').addEventListener('click',async()=>{
+  $('resetSelectedMsg').innerHTML='';
+  const matches=ordersMatchingResetSelection();
+  if(matches===null){
+    $('resetSelectedMsg').innerHTML='<div class="msg err">Set a date range and/or order number(s) above to choose what to reset.</div>';
+    return;
+  }
+  if(!matches.length){
+    $('resetSelectedMsg').innerHTML='<div class="msg err">No orders match that selection.</div>';
+    return;
+  }
+  if(!confirm(`Move ${matches.length} matching order(s) to the Recycle Bin? They'll stay recoverable there for 30 days.`))return;
+  $('resetSelectedOrdersBtn').disabled=true;
+  $('resetSelectedOrdersBtn').textContent='Resetting…';
+  try{
+    const entries=matches.map(o=>{
+      const {id,createdAtDate,seq,...data}=o;
+      return {id,data};
+    });
+    await recycleDocs('orders','order',entries);
+    const removedIds=new Set(matches.map(o=>o.id));
+    allOrders=(allOrders||[]).filter(o=>!removedIds.has(o.id));
+    renderOrders();
+    $('ordResetFrom').value=''; $('ordResetTo').value=''; $('ordResetNumbers').value='';
+    $('resetSelectedMsg').innerHTML=`<div class="msg ok">${matches.length} order(s) moved to the Recycle Bin.</div>`;
+  }catch(e){
+    console.error('Reset selected orders failed',e);
+    $('resetSelectedMsg').innerHTML=`<div class="msg err">${e.message}</div>`;
+  }
+  $('resetSelectedOrdersBtn').disabled=false;
+  $('resetSelectedOrdersBtn').textContent='Reset Selected';
+});
+
+$('resetAllOrdersBtn').addEventListener('click',async()=>{
+  $('resetAllOrdersMsg').innerHTML='';
+  if(!(allOrders&&allOrders.length)){ alert('No orders to reset.'); return; }
+  if(!confirm(`Move all ${allOrders.length} orders to the Recycle Bin? They'll stay recoverable there for 30 days.`))return;
+  if(!confirm('Are you sure? This clears the entire Orders tab.'))return;
+  $('resetAllOrdersBtn').disabled=true;
+  $('resetAllOrdersBtn').textContent='Resetting…';
+  try{
+    const entries=await fetchRawDocs('orders');
+    await recycleDocs('orders','order',entries);
+    allOrders=[];
+    renderOrders();
+    $('resetAllOrdersMsg').innerHTML='<div class="msg ok">All orders moved to the Recycle Bin.</div>';
+  }catch(e){
+    console.error('Reset all orders failed',e);
+    $('resetAllOrdersMsg').innerHTML=`<div class="msg err">${e.message}</div>`;
+  }
+  $('resetAllOrdersBtn').disabled=false;
+  $('resetAllOrdersBtn').textContent='Reset All Orders';
+});
 </script>
 </body>
 </html>
