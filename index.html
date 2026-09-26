@@ -207,6 +207,12 @@ select.form-input{cursor:pointer;}
 .phone-input{border:none;background:transparent;flex:1;padding:13px 14px;font-size:15px;color:var(--text);width:100%;}
 .phone-input:focus{outline:none;}
 .delivery-note{margin-top:10px;font-size:12.5px;color:var(--accent2);background:var(--accent-soft);border:1px solid var(--accent-line);border-radius:8px;padding:10px 12px;line-height:1.5;}
+#chkAddressField{position:relative;}
+.addr-suggestions{position:absolute;left:0;right:0;top:100%;margin-top:6px;background:var(--bg2);border:1.5px solid var(--line-s);border-radius:10px;max-height:220px;overflow-y:auto;z-index:20;box-shadow:0 8px 24px rgba(0,0,0,.14);}
+.addr-suggestions.empty{display:none;}
+.addr-suggestion-item{padding:11px 14px;font-size:14px;line-height:1.4;cursor:pointer;border-bottom:1px solid var(--line);}
+.addr-suggestion-item:last-child{border-bottom:none;}
+.addr-suggestion-item:hover{background:var(--accent-soft);}
 .order-timing-note{margin:20px 0;font-size:13.5px;color:var(--dim);background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:16px 18px;line-height:1.65;}
 .order-timing-note p{margin:0;}
 .order-timing-note p+p{margin-top:10px;}
@@ -825,39 +831,72 @@ function renderCheckout(){
   }
 }
 
-// ---- Optional: Google Maps Places Autocomplete for the delivery address ----
+// ---- Optional: LocationIQ address autocomplete for the delivery address ----
 // To have the address field suggest real addresses as the customer types (like
-// Uber's picker), get a Google Maps JavaScript API key with the "Places API"
-// enabled — and billing turned on, which Google requires even within its free
-// usage tier — from https://console.cloud.google.com/google/maps-apis, then
-// paste it below. Leaving this blank is completely safe: the field just stays
-// a plain text box the customer types their address into by hand.
-const GOOGLE_MAPS_API_KEY = ""; // <-- paste your key here
+// Uber's picker), get a free API key — no card required — from
+// https://locationiq.com, then paste it below. Leaving this blank is
+// completely safe: the field just stays a plain text box the customer types
+// their address into by hand.
+const LOCATIONIQ_API_KEY = ""; // <-- paste your key here
 
-let mapsLoadPromise=null;
-function loadGoogleMaps(){
-  if(!GOOGLE_MAPS_API_KEY) return Promise.resolve(false);
-  if(mapsLoadPromise) return mapsLoadPromise;
-  mapsLoadPromise=new Promise((resolve)=>{
-    if(window.google&&window.google.maps&&window.google.maps.places){ resolve(true); return; }
-    const script=document.createElement('script');
-    script.src=`https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=places`;
-    script.async=true;
-    script.onload=()=>resolve(true);
-    script.onerror=()=>{ console.error('Could not load Google Maps — check the API key in index.html'); resolve(false); };
-    document.head.appendChild(script);
-  });
-  return mapsLoadPromise;
+let addressSuggestBox=null;
+let addressDebounceTimer=null;
+let addressAbortController=null;
+
+function ensureAddressSuggestBox(){
+  if(addressSuggestBox)return addressSuggestBox;
+  const field=document.getElementById('chkAddressField');
+  const box=document.createElement('div');
+  box.className='addr-suggestions empty';
+  field.appendChild(box);
+  addressSuggestBox=box;
+  return box;
 }
-let addressAutocomplete=null;
-async function enableAddressAutocomplete(){
-  const ok=await loadGoogleMaps();
-  if(!ok)return; // no key set yet, or it failed to load — the plain text input still works fine
-  const input=document.getElementById('chkAddress');
-  if(!input||addressAutocomplete)return;
-  addressAutocomplete=new google.maps.places.Autocomplete(input,{
-    fields:['formatted_address','geometry']
+function hideAddressSuggestions(){
+  if(addressSuggestBox){ addressSuggestBox.classList.add('empty'); addressSuggestBox.innerHTML=''; }
+}
+async function fetchAddressSuggestions(query){
+  if(addressAbortController)addressAbortController.abort();
+  addressAbortController=new AbortController();
+  const url=`https://api.locationiq.com/v1/autocomplete?key=${LOCATIONIQ_API_KEY}&q=${encodeURIComponent(query)}&countrycodes=ke&limit=5&dedupe=1&format=json`;
+  try{
+    const res=await fetch(url,{signal:addressAbortController.signal});
+    if(!res.ok)return [];
+    return await res.json();
+  }catch(e){
+    return []; // aborted (user kept typing) or network hiccup — plain text still works
+  }
+}
+function renderAddressSuggestions(results){
+  const box=ensureAddressSuggestBox();
+  if(!results||!results.length){ hideAddressSuggestions(); return; }
+  box.innerHTML=results.map((r,i)=>`<div class="addr-suggestion-item" data-idx="${i}">${r.display_name}</div>`).join('');
+  box.classList.remove('empty');
+  [...box.querySelectorAll('.addr-suggestion-item')].forEach((el,i)=>{
+    // mousedown (not click) so this fires before the input's blur hides the box
+    el.addEventListener('mousedown',(e)=>{
+      e.preventDefault();
+      document.getElementById('chkAddress').value=results[i].display_name;
+      hideAddressSuggestions();
+    });
   });
+}
+let addressAutocompleteBound=false;
+function enableAddressAutocomplete(){
+  if(!LOCATIONIQ_API_KEY)return; // no key set yet — the plain text input still works fine
+  const input=document.getElementById('chkAddress');
+  if(!input||addressAutocompleteBound)return;
+  addressAutocompleteBound=true;
+  input.addEventListener('input',()=>{
+    const query=input.value.trim();
+    clearTimeout(addressDebounceTimer);
+    if(query.length<3){ hideAddressSuggestions(); return; }
+    addressDebounceTimer=setTimeout(async()=>{
+      const results=await fetchAddressSuggestions(query);
+      renderAddressSuggestions(results);
+    },300);
+  });
+  input.addEventListener('blur',()=>{ setTimeout(hideAddressSuggestions,150); });
 }
 
 // Rebuilds the Pickup/Delivery dropdown from the live STORES list every time
