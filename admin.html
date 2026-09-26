@@ -146,20 +146,12 @@ input:focus,textarea:focus,select:focus{outline:none;border-color:var(--accent);
     </div>
 
     <div class="card">
-      <h2 style="font-family:'Playfair Display',serif;font-size:18px;margin-bottom:6px;">Orders & WhatsApp</h2>
-      <p class="hint" style="margin-top:0;">The number every completed order gets sent to. Include the country code, digits only (e.g. Kenya: 254745953367).</p>
-      <div class="field"><label>WhatsApp order number</label><input id="cfg_whatsappNumber" type="text" placeholder="254745953367"></div>
-      <button class="btn primary" id="saveWhatsappBtn" style="margin-top:6px;">Save WhatsApp number</button>
-      <div id="whatsappSaveMsg"></div>
-
-      <div style="margin-top:22px;padding-top:20px;border-top:1px solid var(--line);">
-        <label style="display:block;margin-bottom:6px;">WhatsApp order message</label>
-        <p class="hint" style="margin-top:0;">This is the message that opens pre-filled in the customer's WhatsApp when they complete checkout. Use <code>{order_number}</code>, <code>{order_details}</code>, <code>{customer_name}</code>, and <code>{customer_phone}</code> anywhere you want the order number, itemized items/subtotal/delivery details, customer name, and phone number inserted (the fragrance lines, subtotal, and delivery line are already sent in bold). Wrap any other text in single asterisks, like <code>*this*</code>, to make it bold in WhatsApp.</p>
-        <textarea id="cfg_orderMessageTemplate" style="min-height:180px;font-family:'Space Mono',monospace;font-size:13px;"></textarea>
-        <button class="btn" id="resetOrderMessageBtn" style="margin-top:10px;">Reset to default</button>
-        <button class="btn primary" id="saveOrderMessageBtn" style="margin-top:10px;">Save message template</button>
-        <div id="orderMessageSaveMsg"></div>
-      </div>
+      <h2 style="font-family:'Playfair Display',serif;font-size:18px;margin-bottom:6px;">WhatsApp Order Message</h2>
+      <p class="hint" style="margin-top:0;">This is the message that opens pre-filled in the customer's WhatsApp when they complete checkout. Use <code>{order_number}</code>, <code>{order_details}</code>, <code>{customer_name}</code>, and <code>{customer_phone}</code> anywhere you want the order number, itemized items/subtotal/delivery details, customer name, and phone number inserted (the fragrance lines, subtotal, and delivery line are already sent in bold). Wrap any other text in single asterisks, like <code>*this*</code>, to make it bold in WhatsApp.</p>
+      <textarea id="cfg_orderMessageTemplate" style="min-height:180px;font-family:'Space Mono',monospace;font-size:13px;"></textarea>
+      <button class="btn" id="resetOrderMessageBtn" style="margin-top:10px;">Reset to default</button>
+      <button class="btn primary" id="saveOrderMessageBtn" style="margin-top:10px;">Save message template</button>
+      <div id="orderMessageSaveMsg"></div>
     </div>
 
     <div class="card">
@@ -171,23 +163,13 @@ input:focus,textarea:focus,select:focus{outline:none;border-color:var(--accent);
     </div>
 
     <div class="card">
-      <h2 style="font-family:'Playfair Display',serif;font-size:18px;margin-bottom:6px;">Site theme background</h2>
-      <p class="hint" style="margin-top:0;">Optional — an image shown behind the whole site. Without one, the site just uses its plain colour gradient above.</p>
-      <div id="dropZoneBg" class="drop-zone">
-        <div id="dropZoneBgEmpty">
-          <div style="font-size:22px;margin-bottom:6px;">🖤</div>
-          <div>Drag a photo here, or click to browse</div>
-          <div class="hint" style="margin:6px 0 0;">Recommended: 1920×1080px (16:9), landscape, JPG or PNG. Go dark and moody — a scrim is overlaid on top for text readability. Auto-cropped to fit; compressed automatically.</div>
-        </div>
-        <div id="dropZoneBgPreview" style="display:none;">
-          <img id="previewImgBg" alt="Site background preview">
-          <button type="button" class="btn" id="removeImgBgBtn" style="margin-top:10px;">Remove photo</button>
-        </div>
+      <h2 style="font-family:'Playfair Display',serif;font-size:18px;margin-bottom:6px;">Delivery Address Suggestions</h2>
+      <p class="hint" style="margin-top:0;">When on, the "Custom (Doorstep)" address field at checkout suggests real addresses as the customer types. Turn it off to fall back to a plain text box the customer fills in by hand — useful if the suggestions aren't accurate enough for your area.</p>
+      <div class="toggle-row">
+        <div><div class="tname">Address autocomplete</div><div class="tdesc">Suggest addresses while typing at checkout</div></div>
+        <label class="switch"><input type="checkbox" id="cfg_addressAutocompleteToggle"><span class="slider"></span></label>
       </div>
-      <input type="file" id="fileInputBg" accept="image/*" style="display:none;">
-      <div id="imgMsgBg"></div>
-      <button class="btn primary" id="saveBackgroundBtn" style="margin-top:16px;">Save background</button>
-      <div id="bgSaveMsg"></div>
+      <div id="addressAutocompleteSaveMsg"></div>
     </div>
 
     <div class="card">
@@ -499,10 +481,8 @@ let tagMeta={profile:{},effect:{},occ:{}};
 // the emoji/label overrides without a schema change).
 let hiddenTags={profile:[],effect:[],occ:[]};
 
-// ---------- Site copy, colours & background (config/site doc) ----------
+// ---------- Site copy & colours (config/site doc) ----------
 let siteConfig={};
-const BG_W=1920, BG_H=1080; // 16:9, cover-fits behind the whole viewport
-let bgImageData=undefined; // undefined = untouched this session, null = removed, string = new upload
 
 // ---------- Quiz question on/off toggles (config/questions doc) ----------
 const TOGGLABLE_QUESTIONS=[
@@ -814,9 +794,8 @@ async function loadSiteConfig(){
   }catch(e){ console.error('Could not load site config',e); siteConfig={}; }
   $('cfg_heroTitle').value=siteConfig.heroTitle||'';
   $('cfg_heroSub').value=siteConfig.heroSub||'';
-  $('cfg_whatsappNumber').value=siteConfig.whatsappNumber||'';
   $('cfg_orderMessageTemplate').value=siteConfig.orderMessageTemplate||DEFAULT_ORDER_MESSAGE_TEMPLATE;
-  showBgPreview(siteConfig.background||null);
+  $('cfg_addressAutocompleteToggle').checked=siteConfig.addressAutocompleteEnabled!==false;
 }
 $('saveContentBtn').addEventListener('click',async()=>{
   $('contentSaveMsg').innerHTML='';
@@ -837,23 +816,18 @@ $('saveContentBtn').addEventListener('click',async()=>{
   $('saveContentBtn').disabled=false;
 });
 
-// ---------- Orders & WhatsApp ----------
-$('saveWhatsappBtn').addEventListener('click',async()=>{
-  $('whatsappSaveMsg').innerHTML='';
-  const digitsOnly=$('cfg_whatsappNumber').value.replace(/\D/g,'');
-  if(!digitsOnly){
-    $('whatsappSaveMsg').innerHTML='<div class="msg err">Please enter a number, digits only (include the country code).</div>';
-    return;
-  }
-  $('saveWhatsappBtn').disabled=true;
+// ---------- Delivery address autocomplete toggle ----------
+$('cfg_addressAutocompleteToggle').addEventListener('change',async e=>{
+  $('addressAutocompleteSaveMsg').innerHTML='';
+  const enabled=e.target.checked;
   try{
-    await setDoc(doc(db,'config','site'),{ whatsappNumber:digitsOnly },{merge:true});
-    $('cfg_whatsappNumber').value=digitsOnly;
-    $('whatsappSaveMsg').innerHTML='<div class="msg ok">Saved — new orders will now go to this number.</div>';
-  }catch(e){
-    $('whatsappSaveMsg').innerHTML=`<div class="msg err">${e.message}</div>`;
+    await setDoc(doc(db,'config','site'),{ addressAutocompleteEnabled:enabled },{merge:true});
+    siteConfig.addressAutocompleteEnabled=enabled;
+    $('addressAutocompleteSaveMsg').innerHTML='<div class="msg ok">Saved.</div>';
+  }catch(err){
+    e.target.checked=!enabled;
+    $('addressAutocompleteSaveMsg').innerHTML=`<div class="msg err">${err.message}</div>`;
   }
-  $('saveWhatsappBtn').disabled=false;
 });
 $('resetOrderMessageBtn').addEventListener('click',()=>{
   $('cfg_orderMessageTemplate').value=DEFAULT_ORDER_MESSAGE_TEMPLATE;
@@ -873,82 +847,6 @@ $('saveOrderMessageBtn').addEventListener('click',async()=>{
     $('orderMessageSaveMsg').innerHTML=`<div class="msg err">${e.message}</div>`;
   }
   $('saveOrderMessageBtn').disabled=false;
-});
-
-// ---------- Site theme background ----------
-function showBgPreview(dataUrl){
-  if(dataUrl){
-    $('previewImgBg').src=dataUrl;
-    $('dropZoneBgEmpty').style.display='none';
-    $('dropZoneBgPreview').style.display='block';
-  }else{
-    $('previewImgBg').src='';
-    $('dropZoneBgEmpty').style.display='block';
-    $('dropZoneBgPreview').style.display='none';
-  }
-}
-function processBgFile(file){
-  $('imgMsgBg').innerHTML='';
-  if(!file || !file.type.startsWith('image/')){
-    $('imgMsgBg').innerHTML='<div class="msg err">That doesn\'t look like an image file.</div>';
-    return;
-  }
-  const reader=new FileReader();
-  reader.onload=e=>{
-    const img=new Image();
-    img.onload=()=>{
-      const canvas=document.createElement('canvas');
-      canvas.width=BG_W; canvas.height=BG_H;
-      const ctx=canvas.getContext('2d');
-      const srcRatio=img.width/img.height, targetRatio=BG_W/BG_H;
-      let sx,sy,sw,sh;
-      if(srcRatio>targetRatio){ sh=img.height; sw=sh*targetRatio; sx=(img.width-sw)/2; sy=0; }
-      else{ sw=img.width; sh=sw/targetRatio; sx=0; sy=(img.height-sh)/2; }
-      ctx.drawImage(img,sx,sy,sw,sh,0,0,BG_W,BG_H);
-      let quality=0.85;
-      let dataUrl=canvas.toDataURL('image/jpeg',quality);
-      while(dataUrl.length>950000 && quality>0.4){
-        quality-=0.1;
-        dataUrl=canvas.toDataURL('image/jpeg',quality);
-      }
-      if(dataUrl.length>1100000){
-        $('imgMsgBg').innerHTML='<div class="msg err">This photo is still too large after compression — try a simpler/smaller source image.</div>';
-        return;
-      }
-      bgImageData=dataUrl;
-      showBgPreview(dataUrl);
-    };
-    img.onerror=()=>{ $('imgMsgBg').innerHTML='<div class="msg err">Couldn\'t read that image — try a different file.</div>'; };
-    img.src=e.target.result;
-  };
-  reader.readAsDataURL(file);
-}
-const dropZoneBg=$('dropZoneBg');
-dropZoneBg.addEventListener('click',()=>$('fileInputBg').click());
-$('fileInputBg').addEventListener('change',e=>{ if(e.target.files[0])processBgFile(e.target.files[0]); });
-['dragenter','dragover'].forEach(evt=>dropZoneBg.addEventListener(evt,e=>{ e.preventDefault(); dropZoneBg.classList.add('dragover'); }));
-['dragleave','drop'].forEach(evt=>dropZoneBg.addEventListener(evt,e=>{ e.preventDefault(); dropZoneBg.classList.remove('dragover'); }));
-dropZoneBg.addEventListener('drop',e=>{ if(e.dataTransfer.files[0])processBgFile(e.dataTransfer.files[0]); });
-$('removeImgBgBtn').addEventListener('click',e=>{
-  e.stopPropagation();
-  bgImageData=null;
-  $('fileInputBg').value='';
-  showBgPreview(null);
-});
-$('saveBackgroundBtn').addEventListener('click',async()=>{
-  $('bgSaveMsg').innerHTML='';
-  $('saveBackgroundBtn').disabled=true;
-  try{
-    if(bgImageData!==undefined){ // only write if the admin actually changed it this session
-      await setDoc(doc(db,'config','site'),{background:bgImageData||''},{merge:true});
-      siteConfig.background=bgImageData||'';
-      bgImageData=undefined;
-    }
-    $('bgSaveMsg').innerHTML='<div class="msg ok">Saved — refresh the live quiz to see it.</div>';
-  }catch(e){
-    $('bgSaveMsg').innerHTML=`<div class="msg err">${e.message}</div>`;
-  }
-  $('saveBackgroundBtn').disabled=false;
 });
 
 // ---------- Quiz question on/off toggles ----------

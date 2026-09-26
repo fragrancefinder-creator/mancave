@@ -217,9 +217,11 @@ select.form-input{cursor:pointer;}
 .order-timing-note p{margin:0;}
 .order-timing-note p+p{margin-top:10px;}
 
-/* ---------- Landing choice (Shop / Quiz) ---------- */
-.choice-row{display:none;gap:16px;margin-top:30px;flex-wrap:wrap;}
-.choice-row.active{display:flex;}
+/* ---------- Landing choice (Shop / Quiz) — its own page ---------- */
+.choice-page{display:none;padding:72px 0 80px;position:relative;overflow:hidden;}
+.choice-page.active{display:block;}
+.choice-page .hero-glow{top:-140px;}
+.choice-row{display:flex;gap:16px;margin-top:30px;flex-wrap:wrap;position:relative;}
 .choice-card{flex:1;min-width:220px;text-align:left;padding:24px 26px;border:1.5px solid #000;border-radius:14px;background:#fff;color:#000;cursor:pointer;transition:all .18s;font-family:inherit;}
 .choice-card:hover{background:#000;color:#fff;}
 .choice-card .cc-emoji{font-size:22px;display:block;margin-bottom:10px;}
@@ -264,6 +266,7 @@ select.form-input{cursor:pointer;}
 
 @media(max-width:600px){
   .choice-row{flex-direction:column;}
+  .choice-page{padding:40px 0 32px;}
   .nav-links{gap:10px;}
   .shop-grid{grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px;}
   .shop-toolbar{flex-direction:column;}
@@ -347,6 +350,15 @@ select.form-input{cursor:pointer;}
     <h1>YOUR SIGNATURE SCENT<br><em>STARTS HERE.</em></h1>
     <p class="hero-sub">Finding the right fragrance can be difficult, but here at <strong>MANCAVE</strong>, we take that burden off you. We take the guesswork out of choosing your scent by being intentional about matching <strong><em>OUR</em></strong> fragrances to <strong><em>YOUR</em></strong> lifestyle, occasions, weather and the impression you want to make. Whether you need a <strong>Day-time</strong> scent for the office or business, a <strong>Night-time</strong> scent for dates and enjoyable nights out, or that one <strong>Special Occasion</strong> fragrance designed to make an impression, we'll help you find the right fit. All you have to do is answer the following questions and let our fragrance consultant algorithm find the perfect scents, carefully catered to your needs.</p>
     <button class="start-btn" id="startBtn">Next →</button>
+  </div>
+</header>
+
+<section class="choice-page" id="choiceSection">
+  <div class="hero-glow"></div>
+  <div class="w">
+    <div class="eyebrow">Get started</div>
+    <h1 style="font-size:clamp(30px,5vw,42px);">WHERE WOULD YOU<br><em>LIKE TO BEGIN?</em></h1>
+    <p class="hero-sub">Browse everything yourself, or let our fragrance consultant algorithm match you to a scent in a few quick questions — either way works.</p>
     <div class="choice-row" id="choiceRow">
       <button class="choice-card" id="goShopBtn">
         <span class="cc-emoji">🛍️</span>
@@ -359,8 +371,11 @@ select.form-input{cursor:pointer;}
         <div class="cc-desc">Answer a few questions and let us match you to a scent.</div>
       </button>
     </div>
+    <div class="restart-row" style="margin-top:28px;">
+      <button class="btn-ghost" id="choiceBackHomeBtn">← Back to home</button>
+    </div>
   </div>
-</header>
+</section>
 
 <section class="shop w" id="shopSection">
   <div class="breadcrumbs" id="shopBreadcrumbs"></div>
@@ -552,7 +567,7 @@ function buildDynamicTagOptions(){
 
 // Site copy, colours & background image — set from admin's "Site copy & colours" /
 // "Site theme background" cards (config/site doc in Firestore).
-let SITE_CONFIG={heroTitle:'',heroSub:'',accent:'',bg:'',background:'',whatsappNumber:'254745953367',orderMessageTemplate:''};
+let SITE_CONFIG={heroTitle:'',heroSub:'',accent:'',bg:'',background:'',whatsappNumber:'254745953367',orderMessageTemplate:'',addressAutocompleteEnabled:true};
 
 // Default WhatsApp order message. Editable from the admin panel — {order_number}
 // and {order_details} are replaced with the real order number and the
@@ -665,7 +680,7 @@ async function loadCatalog(){
     console.error('Failed to load fragrance catalog',e);
   }
   buildDynamicTagOptions();
-  startBtn.textContent='Start the test →';
+  startBtn.textContent='Next →';
   startBtn.disabled=false;
 }
 
@@ -884,6 +899,7 @@ function renderAddressSuggestions(results){
 let addressAutocompleteBound=false;
 function enableAddressAutocomplete(){
   if(!LOCATIONIQ_API_KEY)return; // no key set yet — the plain text input still works fine
+  if(SITE_CONFIG.addressAutocompleteEnabled===false)return; // turned off from the admin panel
   const input=document.getElementById('chkAddress');
   if(!input||addressAutocompleteBound)return;
   addressAutocompleteBound=true;
@@ -1033,25 +1049,30 @@ document.getElementById('placeOrderBtn').addEventListener('click',async()=>{
   btn.disabled=false; btn.textContent='Place order via WhatsApp →';
 });
 
-// ---- Landing flow: hero's "Next" button reveals the Shop/Quiz choice ----
+// ---- Landing flow: hero's "Next" button moves to its own Shop/Quiz choice page ----
+const choiceSection=document.getElementById('choiceSection');
 document.getElementById('startBtn').addEventListener('click',()=>{
-  document.getElementById('startBtn').style.display='none';
-  document.getElementById('choiceRow').classList.add('active');
+  showChoice();
 });
+document.getElementById('choiceBackHomeBtn').addEventListener('click',showHero);
 
 // Hides every top-level page section so exactly one can be shown at a time.
 function hideAllSections(){
   heroSection.style.display='none';
-  [quizSection,resultsSection,checkoutSection,shopSection,productSection].forEach(el=>{
+  [choiceSection,quizSection,resultsSection,checkoutSection,shopSection,productSection].forEach(el=>{
     if(el)el.classList.remove('active');
   });
 }
 function showHero(){
   hideAllSections();
   heroSection.style.display='block';
-  document.getElementById('startBtn').style.display='';
-  document.getElementById('choiceRow').classList.remove('active');
   lastMainSection='hero';
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+function showChoice(){
+  hideAllSections();
+  choiceSection.classList.add('active');
+  lastMainSection='choice';
   window.scrollTo({top:0,behavior:'smooth'});
 }
 function startQuizFlow(){
