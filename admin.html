@@ -450,6 +450,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
+const $=id=>document.getElementById(id);
 
 // ---------- Seed data: the original 16-fragrance catalog, tags grounded in real
 // reviews (Fragrantica / community consensus on the designer fragrances these are
@@ -606,8 +607,6 @@ async function loadTagMeta(){
 let catalog=[];
 let editingId=null;
 let picked={profile:new Set(),effect:new Set(),occ:new Set(),time:new Set(),weather:new Set(),strength:new Set()};
-
-const $=id=>document.getElementById(id);
 
 // ---------- Auth ----------
 $('loginBtn').addEventListener('click',async()=>{
