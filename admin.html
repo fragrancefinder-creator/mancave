@@ -90,6 +90,10 @@ input:focus,textarea:focus,select:focus{outline:none;border-color:var(--accent);
 .toggle-row:last-child{border-bottom:none;}
 .toggle-row .tname{font-weight:600;font-size:14px;}
 .toggle-row .tdesc{font-size:12px;color:var(--dimmer);margin-top:2px;}
+.store-row{display:flex;align-items:center;gap:14px;padding:14px 0;border-bottom:1px solid var(--line);}
+.store-row:last-child{border-bottom:none;}
+.store-row .store-fields{flex:1;display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.store-row input{margin:0;}
 .switch{position:relative;display:inline-block;width:46px;height:26px;flex-shrink:0;cursor:pointer;}
 .switch input{opacity:0;width:0;height:0;position:absolute;}
 .switch .slider{position:absolute;inset:0;background:var(--line-s);border-radius:99px;transition:background .15s;}
@@ -150,12 +154,20 @@ input:focus,textarea:focus,select:focus{outline:none;border-color:var(--accent);
 
       <div style="margin-top:22px;padding-top:20px;border-top:1px solid var(--line);">
         <label style="display:block;margin-bottom:6px;">WhatsApp order message</label>
-        <p class="hint" style="margin-top:0;">This is the message that opens pre-filled in the customer's WhatsApp when they complete checkout. Use <code>{order_number}</code> and <code>{order_details}</code> anywhere you want the order number and the itemized items/subtotal/delivery details inserted (the fragrance lines, subtotal, and delivery line are already sent in bold). Wrap any other text in single asterisks, like <code>*this*</code>, to make it bold in WhatsApp.</p>
+        <p class="hint" style="margin-top:0;">This is the message that opens pre-filled in the customer's WhatsApp when they complete checkout. Use <code>{order_number}</code>, <code>{order_details}</code>, <code>{customer_name}</code>, and <code>{customer_phone}</code> anywhere you want the order number, itemized items/subtotal/delivery details, customer name, and phone number inserted (the fragrance lines, subtotal, and delivery line are already sent in bold). Wrap any other text in single asterisks, like <code>*this*</code>, to make it bold in WhatsApp.</p>
         <textarea id="cfg_orderMessageTemplate" style="min-height:180px;font-family:'Space Mono',monospace;font-size:13px;"></textarea>
         <button class="btn" id="resetOrderMessageBtn" style="margin-top:10px;">Reset to default</button>
         <button class="btn primary" id="saveOrderMessageBtn" style="margin-top:10px;">Save message template</button>
         <div id="orderMessageSaveMsg"></div>
       </div>
+    </div>
+
+    <div class="card">
+      <h2 style="font-family:'Playfair Display',serif;font-size:18px;margin-bottom:6px;">Store Pickup Locations</h2>
+      <p class="hint" style="margin-top:0;">The stores customers can choose for pickup at checkout. Switch a store off to remove it from the customer's dropdown right away. Each store's WhatsApp number is where orders for pickup at that store get sent.</p>
+      <div id="storeRows"></div>
+      <button class="btn primary" id="saveStoresBtn" style="margin-top:14px;">Save store changes</button>
+      <div id="storesSaveMsg"></div>
     </div>
 
     <div class="card">
@@ -502,6 +514,53 @@ const TOGGLABLE_QUESTIONS=[
 ];
 let questionConfig={};
 
+// Store pickup locations shown in the customer's checkout dropdown, kept in
+// sync with the "Store Pickup Locations" card. Defaults match the three
+// stores in place today; the live values (name/whatsapp/enabled) are loaded
+// from config/stores in Firestore, field "list".
+let STORES=[
+  {id:'nsk',name:'Mancave NSK',whatsapp:'254769888000',enabled:true},
+  {id:'mwanzi',name:'Mancave Mwanzi Market',whatsapp:'254706163145',enabled:true},
+  {id:'kitengela',name:'Mancave Kitengela (Danka Plaza)',whatsapp:'254733225564',enabled:true}
+];
+async function loadStores(){
+  try{
+    const snap=await getDoc(doc(db,'config','stores'));
+    if(snap.exists()&&Array.isArray(snap.data().list)&&snap.data().list.length){
+      STORES=snap.data().list;
+    }
+  }catch(e){ console.error('Could not load store list (using defaults)',e); }
+  renderStoreRows();
+}
+function renderStoreRows(){
+  $('storeRows').innerHTML=STORES.map((s,i)=>`
+    <div class="store-row" data-i="${i}">
+      <div class="store-fields">
+        <input class="store-name-input" value="${s.name.replace(/"/g,'&quot;')}" placeholder="Store name">
+        <input class="store-whatsapp-input" value="${s.whatsapp||''}" placeholder="2547XXXXXXXX">
+      </div>
+      <label class="switch"><input type="checkbox" class="store-enabled-input" ${s.enabled!==false?'checked':''}><span class="slider"></span></label>
+    </div>`).join('');
+}
+async function saveStores(){
+  const msg=$('storesSaveMsg');
+  const rows=[...$('storeRows').querySelectorAll('.store-row')];
+  const updated=rows.map((row,i)=>({
+    id:STORES[i].id,
+    name:row.querySelector('.store-name-input').value.trim()||STORES[i].name,
+    whatsapp:row.querySelector('.store-whatsapp-input').value.replace(/\D/g,'')||STORES[i].whatsapp,
+    enabled:row.querySelector('.store-enabled-input').checked
+  }));
+  try{
+    await setDoc(doc(db,'config','stores'),{list:updated});
+    STORES=updated;
+    msg.innerHTML='<div class="msg ok">Store changes saved.</div>';
+  }catch(e){
+    msg.innerHTML='<div class="msg err">Could not save: '+e.message+'</div>';
+  }
+}
+$('saveStoresBtn').addEventListener('click',saveStores);
+
 function tagInfo(category,tag){
   const override=tagMeta[category][tag];
   const base=BASE_META[category][tag];
@@ -595,6 +654,7 @@ async function initApp(){
   renderFragList();
   try{ await loadSiteConfig(); }catch(e){ console.error('loadSiteConfig failed',e); }
   try{ await loadQuestionConfig(); }catch(e){ console.error('loadQuestionConfig failed',e); }
+  try{ await loadStores(); }catch(e){ console.error('loadStores failed',e); }
   try{ await sweepExpiredRecycleBin(); }catch(e){ console.error('Recycle bin sweep failed',e); }
 }
 
@@ -737,6 +797,9 @@ $('removeImgBtn').addEventListener('click',e=>{ e.stopPropagation(); clearImage(
 
 // Kept in sync with the same default in index.html.
 const DEFAULT_ORDER_MESSAGE_TEMPLATE=`Thank you for completing your order with Mancave Man Market.
+
+Customer: {customer_name}
+Phone: {customer_phone}
 
 Order details: #{order_number}
 {order_details}
